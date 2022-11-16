@@ -54,9 +54,30 @@
 (define SHIP-EXPLODE (scale 0.3 (bitmap/file "sprites/ship_exploded.png")))
 (define SHIP-Y (- HEIGHT 30))
 (define SHIP-X-START (/ WIDTH 2))
-(define SHIP-SPEED 7) ;; pixels per tick
+(define SHIP-SPEED 6) ;; pixels per tick
 (define MIN-SHIP-X (/ (image-width SHIP) 2))
 (define MAX-SHIP-X (- WIDTH (/ (image-width SHIP) 2)))
+
+(define LASER-PLAYER (rectangle 1 15 "solid" "white"))
+(define LASER-PLAYER-SPEED 10)
+(define LASER-MAX-Y (+ 15 HEIGHT))
+(define LASER-MIN-Y -15)
+
+;; laser images for aliens
+(define ALIEN-LASER-SCALE 2)
+(define WIGGLE1 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle1.png")))
+(define WIGGLE2 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle2.png")))
+(define WIGGLE3 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle3.png")))
+(define WIGGLE4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle4.png")))
+(define WIGGLE4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle4.png")))
+(define STR1 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/straight1.png")))
+(define STR2 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/straight2.png")))
+(define STR3 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/straight3.png")))
+(define STR4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/straight4.png")))
+(define ZIGZAG1 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag1.png")))
+(define ZIGZAG2 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag2.png")))
+(define ZIGZAG3 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag3.png")))
+(define ZIGZAG4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag4.png")))
 
 ;; =================
 ;; Data definitions:
@@ -72,15 +93,37 @@
 (define S2 (make-ship 50 5))
 (define S3 (make-ship 70 -5))
 
-(@htdd Laser)
-(define-struct laser (x y player?))
-;; Laser is (make-laser Number Number Boolean)
-;; interp. a laser fired by the player or an alien
-;;         x and y are screen coordinates of the center,
-;;         player? is true if the laser was fired by the player,
-;;                    false if fired by an alien
-(define L1 (make-laser 100 50 true))
-(define L2 (make-laser 200 300 false))
+
+(@htdd PlayerLaser)
+(define-struct player-laser (x y))
+;; PlayerLaser is (make-player-laser Number Number)
+;; interp. a laser fired by the player with screen coords x and y
+(define PL1 (make-player-laser 100 50))
+(define PL2 (make-player-laser 200 300))
+(define LOPL (list PL1 PL2))
+
+
+(@htdd AlienLaserImage)
+(define-struct ali (img id))
+;; AlienLaserImage is (make-ali Image Natural)
+;; interp. contains all alien laser images and their image IDs
+;; examples are exhaustive
+(define WIGGLE1ALI (make-ali WIGGLE1 1))
+;; !!!
+
+  
+(@htdd AlienLaser)
+(define-struct alien-laser (x y img timer))
+;; AlienLaser is (make-alien-laser Number Number AlienLaserImage Natural)
+;; interp. a laser fired by an alien
+;;         x and y are screen coordinates of the center of the laser
+;;         img is which laser sprite the laser currently has
+;;         timer is the number of ticks left until a sprite change
+;; !!!
+
+
+
+
 
 (@htdd Alien)
 ;; !!!
@@ -104,7 +147,7 @@
 (define GSTART (make-game (make-ship SHIP-X-START 0)
                           empty empty false)) ;; add aliens to this
 (define G5 (make-game (make-ship 200 0)
-                      (list L1 L2)
+                      (list PL1 PL2)
                       empty false))
 ;; !!! examples with aliens
 
@@ -184,7 +227,7 @@
 
 (@htdf tock-lasers)
 (@signature Game -> Game)
-;; advance lasers by one tick
+;; move lasers, delete offscreen, check collisions
 ;; !!!
 (define (tock-lasers g) g)
 
@@ -251,8 +294,19 @@
 
 (@htdf place-lasers)
 (@signature Game Image -> Image)
-;; place all lasers onto i
-;; !!!
+;; place all lasers onto i, update timer & change sprite for alien lasers!!!
+(check-expect (place-lasers G0 MTS) MTS)
+(check-expect (place-lasers G1 (square 10 "solid" "purple"))
+                            (square 10 "solid" "purple"))
+(check-expect (place-lasers G1 (square 10 "solid" "purple"))
+                            (square 10 "solid" "purple"))
+(check-expect (place-lasers G2 MTS) MTS)
+
+(check-expect (place-lasers (make-game (make-ship 0 0) (list PL1)
+                                       empty false) MTS)
+              (place-image LASER-PLAYER 100 50 MTS))
+
+
 (define (place-lasers g i) i)
 
 
