@@ -51,22 +51,43 @@
         RESTART 340 300 EMPTY))))))
 
 (define SHIP (scale 0.3 (bitmap/file "sprites/ship.png")))
+(define SHIP-EXPLODE (scale 0.3 (bitmap/file "sprites/ship_exploded.png")))
 (define SHIP-Y (- HEIGHT 30))
 (define SHIP-X-START (/ WIDTH 2))
 (define SHIP-SPEED 7) ;; pixels per tick
-
-(define MIN-X (/ (image-width SHIP) 2))
-(define MAX-X (- WIDTH (/ (image-width SHIP) 2)))
+(define MIN-SHIP-X (/ (image-width SHIP) 2))
+(define MAX-SHIP-X (- WIDTH (/ (image-width SHIP) 2)))
 
 ;; =================
 ;; Data definitions:
 
-;; Structs:
+(@htdd Ship)
 (define-struct ship (x speed))
-(define-struct game (ship lasers aliens over?))
+;; Ship is (make-ship Number Number)
+;; interp.
+;;   the ship with center x-position and speed
+;;   speed is negative left, positive right
+(define SSTART (make-ship SHIP-X-START 0))
+(define S1 (make-ship 100 0))
+(define S2 (make-ship 50 5))
+(define S3 (make-ship 70 -5))
+
+(@htdd Laser)
+(define-struct laser (x y player?))
+;; Laser is (make-laser Number Number Boolean)
+;; interp. a laser fired by the player or an alien
+;;         x and y are screen coordinates of the center,
+;;         player? is true if the laser was fired by the player,
+;;                    false if fired by an alien
+(define L1 (make-laser 100 50 true))
+(define L2 (make-laser 200 300 false))
+
+(@htdd Alien)
+;; !!!
+
 
 (@htdd Game)
-;; (define-struct game (ship lasers aliens over?))
+(define-struct game (ship lasers aliens over?))
 ;; Game is one of:
 ;;  - false
 ;;  - (make-game Ship (listof Laser) (listof Alien) Boolean)
@@ -81,26 +102,11 @@
 (define G2 (make-game (make-ship 50 5) empty empty true))
 (define G3 (make-game (make-ship 70 -5) empty empty false))
 (define GSTART (make-game (make-ship SHIP-X-START 0)
-                          empty empty false)) ; !!! add aliens here
- 
-; !!! examples with aliens and lasers
-
-(@htdd Ship)
-;; (define-struct ship (x speed))
-;; Ship is (make-ship Number Number)
-;; interp.
-;;   the ship with x-position and speed
-;;   speed is negative left, positive right
-(define SSTART (make-ship SHIP-X-START 0))
-(define S1 (make-ship 100 0))
-(define S2 (make-ship 50 5))
-(define S3 (make-ship 70 -5))
-
-(@htdd Laser)
-;; !!!
-
-(@htdd Alien)
-;; !!!
+                          empty empty false)) ;; add aliens to this
+(define G5 (make-game (make-ship 200 0)
+                      (list L1 L2)
+                      empty false))
+;; !!! examples with aliens
 
 
 ;; =================
@@ -113,33 +119,33 @@
 (@template-origin htdw-main)
 (define (main g)
   (big-bang g
-    (on-tick    tock)             ; Game -> Game
-    (to-draw    render)           ; Game -> Image
-    (on-key     handle-key)       ; Game KeyEvent -> Game
-    (on-release handle-release))) ; Game KeyEvent -> Game
+    (on-tick    tock)             ;; Game -> Game
+    (to-draw    render)           ;; Game -> Image
+    (on-key     handle-key)       ;; Game KeyEvent -> Game
+    (on-release handle-release))) ;; Game KeyEvent -> Game
   
-
-
 
 
 (@htdf tock)
 (@signature Game -> Game)
-;; advance ship, aliens!!!, lasers!!! by one tick
+;; advance ship, lasers, aliens by one tick
 (check-expect (tock G0) G0)
 (check-expect (tock G1) G1)
 (check-expect (tock G2) G2)
 (check-expect (tock G3)
               (make-game (make-ship 65 -5) empty empty false))
 
-(@template-origin Game use-abstract-fn)
+(@template-origin Game fn-composition)
 (define (tock g)
-  (cond [(false? g) g]
-        [(game-over? g) g]
-        [else
-         (make-game (tock-ship (game-ship g))
-                    (map tock-laser (game-lasers g)) ; this will not work
-                    (map tock-alien (game-aliens g)) ; for collision checks
-                    false)]))
+  (local [(define (tock-ship-game g)
+            (make-game (tock-ship (game-ship g))
+                       (game-lasers g)
+                       (game-aliens g)
+                       (game-over? g)))]
+    (cond [(false? g) g]
+          [(game-over? g) g]
+          [else
+           (tock-aliens (tock-lasers (tock-ship-game g)))])))
 
 
 (@htdf tock-ship)
@@ -149,45 +155,45 @@
 (check-expect (tock-ship S2) (make-ship 55 5))
 (check-expect (tock-ship S3) (make-ship 65 -5))
 
-(check-expect (tock-ship (make-ship (+ 5 MIN-X) -4))
-              (make-ship (+ 1 MIN-X) -4))
-(check-expect (tock-ship (make-ship (+ 5 MIN-X) -5))
-              (make-ship (+ 0 MIN-X) -5))
-(check-expect (tock-ship (make-ship (+ 5 MIN-X) -6))
-              (make-ship (+ 0 MIN-X) -6))
-(check-expect (tock-ship (make-ship (+ 0 MIN-X) 5))
-              (make-ship (+ 5 MIN-X) 5))
+(check-expect (tock-ship (make-ship (+ 5 MIN-SHIP-X) -4))
+              (make-ship (+ 1 MIN-SHIP-X) -4))
+(check-expect (tock-ship (make-ship (+ 5 MIN-SHIP-X) -5))
+              (make-ship (+ 0 MIN-SHIP-X) -5))
+(check-expect (tock-ship (make-ship (+ 5 MIN-SHIP-X) -6))
+              (make-ship (+ 0 MIN-SHIP-X) -6))
+(check-expect (tock-ship (make-ship (+ 0 MIN-SHIP-X) 5))
+              (make-ship (+ 5 MIN-SHIP-X) 5))
 
-(check-expect (tock-ship (make-ship (- MAX-X 3) 2))
-              (make-ship (- MAX-X 1) 2))
-(check-expect (tock-ship (make-ship (- MAX-X 2) 2))
-              (make-ship (- MAX-X 0) 2))
-(check-expect (tock-ship (make-ship (- MAX-X 1) 2))
-              (make-ship (- MAX-X 0) 2))
-(check-expect (tock-ship (make-ship (- MAX-X 0) -5))
-              (make-ship (- MAX-X 5) -5))
+(check-expect (tock-ship (make-ship (- MAX-SHIP-X 3) 2))
+              (make-ship (- MAX-SHIP-X 1) 2))
+(check-expect (tock-ship (make-ship (- MAX-SHIP-X 2) 2))
+              (make-ship (- MAX-SHIP-X 0) 2))
+(check-expect (tock-ship (make-ship (- MAX-SHIP-X 1) 2))
+              (make-ship (- MAX-SHIP-X 0) 2))
+(check-expect (tock-ship (make-ship (- MAX-SHIP-X 0) -5))
+              (make-ship (- MAX-SHIP-X 5) -5))
 
 (@template-origin Ship)
 (define (tock-ship s)
   (local [(define next-x (+ (ship-x s) (ship-speed s)))]
-    (cond [(< next-x MIN-X) (make-ship MIN-X (ship-speed s))]
-          [(> next-x MAX-X) (make-ship MAX-X (ship-speed s))]
+    (cond [(< next-x MIN-SHIP-X) (make-ship MIN-SHIP-X (ship-speed s))]
+          [(> next-x MAX-SHIP-X) (make-ship MAX-SHIP-X (ship-speed s))]
           [else
            (make-ship next-x (ship-speed s))])))
 
 
-(@htdf tock-laser)
-(@signature Laser -> Laser)
-;; advance laser by one tick
+(@htdf tock-lasers)
+(@signature Game -> Game)
+;; advance lasers by one tick
 ;; !!!
-(define (tock-laser l) l)
+(define (tock-lasers g) g)
 
 
-(@htdf tock-alien)
-(@signature Alien -> Alien)
-;; advance alien by one tick
+(@htdf tock-aliens)
+(@signature Game -> Game)
+;; advance aliens by one tick
 ;; !!!
-(define (tock-alien a) a)
+(define (tock-aliens g) g)
 
 
 (@htdf render)
@@ -199,7 +205,7 @@
 (check-expect (render G2)
               (place-image END-SCREEN
                            (/ WIDTH 2) (/ HEIGHT 2)
-                           (place-image SHIP 50 SHIP-Y MTS)))
+                           (place-image SHIP-EXPLODE 50 SHIP-Y MTS)))
 
 (@template-origin Game)
 (define (render g)
@@ -212,15 +218,49 @@
 
 (@htdf render-game)
 (@signature Game -> Image)
-;; render ship, lasers!!!, aliens!!!
+;; render ship, lasers, aliens on MTS
 (check-expect (render-game G1)
               (place-image SHIP 100 SHIP-Y MTS))
-(check-expect (render-game G3)
-              (place-image SHIP 70 SHIP-Y MTS))
+(check-expect (render-game G2)
+              (place-image SHIP-EXPLODE 50 SHIP-Y MTS))
 
-(@template-origin Game) ; !!! this will be fn-composition when we add others
+(@template-origin fn-composition)
 (define (render-game g)
-  (place-image SHIP (ship-x (game-ship g)) SHIP-Y MTS))
+  (place-aliens g (place-lasers g (place-ship g MTS))))
+
+
+(@htdf place-ship)
+(@signature Game Image -> Image)
+;; place ship/exploded ship on image, assume image is the same size as MTS
+(check-expect (place-ship G1 MTS)
+              (place-image SHIP 100 SHIP-Y MTS))
+(check-expect (place-ship G2 MTS)
+              (place-image SHIP-EXPLODE 50 SHIP-Y MTS))
+(check-expect (place-ship G3
+                          (rectangle WIDTH HEIGHT "solid" "purple"))
+              (place-image SHIP 70 SHIP-Y
+                           (rectangle WIDTH HEIGHT "solid" "purple")))
+
+(@template-origin Ship)
+(define (place-ship g i)
+  (local [(define s (game-ship g))]
+    (if (game-over? g)
+        (place-image SHIP-EXPLODE (ship-x s) SHIP-Y i)
+        (place-image SHIP (ship-x s) SHIP-Y i))))
+
+
+(@htdf place-lasers)
+(@signature Game Image -> Image)
+;; place all lasers onto i
+;; !!!
+(define (place-lasers g i) i)
+
+
+(@htdf place-aliens)
+(@signature Game Image -> Image)
+;; place all aliens onto i
+;; !!!
+(define (place-aliens g i) i)
 
 
 (@htdf handle-release)
