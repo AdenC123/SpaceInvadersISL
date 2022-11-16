@@ -50,35 +50,57 @@
        (place-image
         RESTART 340 300 EMPTY))))))
 
-(define SHIP (scale 0.4 (bitmap/file "sprites/ship.png")))
+(define SHIP (scale 0.3 (bitmap/file "sprites/ship.png")))
 (define SHIP-Y (- HEIGHT 30))
 (define SHIP-X-START (/ WIDTH 2))
-(define SHIP-SPEED 5) ;; pixels per tick
+(define SHIP-SPEED 7) ;; pixels per tick
+
+(define MIN-X (/ (image-width SHIP) 2))
+(define MAX-X (- WIDTH (/ (image-width SHIP) 2)))
 
 ;; =================
 ;; Data definitions:
 
+;; Structs:
+(define-struct ship (x speed))
+(define-struct game (ship lasers aliens over?))
+
 (@htdd Game)
-(define-struct game (ship-x lasers aliens over?))
+;; (define-struct game (ship lasers aliens over?))
 ;; Game is one of:
 ;;  - false
-;;  - (make-game Number (listof Laser) (listof Alien) Boolean)
-;; interp.
+;;  - (make-game Ship (listof Laser) (listof Alien) Boolean)
+;; interp. Represents the state of the game.
 ;;    false means game has not started yet
 ;;    ship-x is x position of the ship
 ;;    lasers is a list of all lasers on the screen
 ;;    aliens is a list of all aliens on the screen
 ;;    over? is false normally, but becomes true when the player loses
 (define G0 false)
-(define G1 (make-game 100 empty empty false))
-(define G2 (make-game 50 empty empty true))
-(define GSTART (make-game SHIP-X-START empty empty false)) ; !!! add aliens here
+(define G1 (make-game (make-ship 100 0) empty empty false))
+(define G2 (make-game (make-ship 50 5) empty empty true))
+(define G3 (make-game (make-ship 70 -5) empty empty false))
+(define GSTART (make-game (make-ship SHIP-X-START 0)
+                          empty empty false)) ; !!! add aliens here
  
 ; !!! examples with aliens and lasers
 
-; !!! (@htdd Laser)
+(@htdd Ship)
+;; (define-struct ship (x speed))
+;; Ship is (make-ship Number Number)
+;; interp.
+;;   the ship with x-position and speed
+;;   speed is negative left, positive right
+(define SSTART (make-ship SHIP-X-START 0))
+(define S1 (make-ship 100 0))
+(define S2 (make-ship 50 5))
+(define S3 (make-ship 70 -5))
 
-; !!! (@htdd Alien)
+(@htdd Laser)
+;; !!!
+
+(@htdd Alien)
+;; !!!
 
 
 ;; =================
@@ -91,17 +113,81 @@
 (@template-origin htdw-main)
 (define (main g)
   (big-bang g
-    (on-tick  tock)         ; Game -> Game
-    (to-draw  render)       ; Game -> Image
-    (on-key   handle-key))) ; Game KeyEvent -> Game
+    (on-tick    tock)             ; Game -> Game
+    (to-draw    render)           ; Game -> Image
+    (on-key     handle-key)       ; Game KeyEvent -> Game
+    (on-release handle-release))) ; Game KeyEvent -> Game
+  
+
 
 
 
 (@htdf tock)
 (@signature Game -> Game)
-;; advance the game state by 1 tick
-;; !!! when we have lasers
-(define (tock g) g)
+;; advance ship, aliens!!!, lasers!!! by one tick
+(check-expect (tock G0) G0)
+(check-expect (tock G1) G1)
+(check-expect (tock G2) G2)
+(check-expect (tock G3)
+              (make-game (make-ship 65 -5) empty empty false))
+
+(@template-origin Game use-abstract-fn)
+(define (tock g)
+  (cond [(false? g) g]
+        [(game-over? g) g]
+        [else
+         (make-game (tock-ship (game-ship g))
+                    (map tock-laser (game-lasers g)) ; this will not work
+                    (map tock-alien (game-aliens g)) ; for collision checks
+                    false)]))
+
+
+(@htdf tock-ship)
+(@signature Ship -> Ship)
+;; move ship by speed, don't go past walls
+(check-expect (tock-ship S1) S1)
+(check-expect (tock-ship S2) (make-ship 55 5))
+(check-expect (tock-ship S3) (make-ship 65 -5))
+
+(check-expect (tock-ship (make-ship (+ 5 MIN-X) -4))
+              (make-ship (+ 1 MIN-X) -4))
+(check-expect (tock-ship (make-ship (+ 5 MIN-X) -5))
+              (make-ship (+ 0 MIN-X) -5))
+(check-expect (tock-ship (make-ship (+ 5 MIN-X) -6))
+              (make-ship (+ 0 MIN-X) -6))
+(check-expect (tock-ship (make-ship (+ 0 MIN-X) 5))
+              (make-ship (+ 5 MIN-X) 5))
+
+(check-expect (tock-ship (make-ship (- MAX-X 3) 2))
+              (make-ship (- MAX-X 1) 2))
+(check-expect (tock-ship (make-ship (- MAX-X 2) 2))
+              (make-ship (- MAX-X 0) 2))
+(check-expect (tock-ship (make-ship (- MAX-X 1) 2))
+              (make-ship (- MAX-X 0) 2))
+(check-expect (tock-ship (make-ship (- MAX-X 0) -5))
+              (make-ship (- MAX-X 5) -5))
+
+(@template-origin Ship)
+(define (tock-ship s)
+  (local [(define next-x (+ (ship-x s) (ship-speed s)))]
+    (cond [(< next-x MIN-X) (make-ship MIN-X (ship-speed s))]
+          [(> next-x MAX-X) (make-ship MAX-X (ship-speed s))]
+          [else
+           (make-ship next-x (ship-speed s))])))
+
+
+(@htdf tock-laser)
+(@signature Laser -> Laser)
+;; advance laser by one tick
+;; !!!
+(define (tock-laser l) l)
+
+
+(@htdf tock-alien)
+(@signature Alien -> Alien)
+;; advance alien by one tick
+;; !!!
+(define (tock-alien a) a)
 
 
 (@htdf render)
@@ -111,9 +197,9 @@
 (check-expect (render G1)
               (place-image SHIP 100 SHIP-Y MTS))
 (check-expect (render G2)
-              (place-image SHIP 50 SHIP-Y
-                           (place-image END-SCREEN
-                                        (/ WIDTH 2) (/ HEIGHT 2) MTS)))
+              (place-image END-SCREEN
+                           (/ WIDTH 2) (/ HEIGHT 2)
+                           (place-image SHIP 50 SHIP-Y MTS)))
 
 (@template-origin Game)
 (define (render g)
@@ -126,13 +212,41 @@
 
 (@htdf render-game)
 (@signature Game -> Image)
-;; render ship, lasers, aliens !!!
+;; render ship, lasers!!!, aliens!!!
 (check-expect (render-game G1)
               (place-image SHIP 100 SHIP-Y MTS))
+(check-expect (render-game G3)
+              (place-image SHIP 70 SHIP-Y MTS))
 
 (@template-origin Game) ; !!! this will be fn-composition when we add others
 (define (render-game g)
-  (place-image SHIP (game-ship-x g) SHIP-Y MTS))
+  (place-image SHIP (ship-x (game-ship g)) SHIP-Y MTS))
+
+
+(@htdf handle-release)
+(@signature Game KeyEvent -> Game)
+;; stop ship movement when left or right are released
+(check-expect (handle-release G0 "left") G0)
+(check-expect (handle-release G2 "left") G2)
+
+(check-expect (handle-release G1 "left") G1)
+(check-expect (handle-release G3 "left")
+              (make-game (make-ship 70 0) empty empty false))
+(check-expect (handle-release G3 "right")
+              (make-game (make-ship 70 0) empty empty false))
+(check-expect (handle-release G3 "a") G3)
+
+(@template-origin Game)
+(define (handle-release g ke)
+  (local [(define (stop-ship g)
+            (make-game (make-ship (ship-x (game-ship g)) 0)
+                       (game-lasers g) (game-aliens g) (game-over? g)))]
+    (cond [(false? g) g]
+          [(game-over? g) g]
+          [else
+           (if (or (key=? ke "left") (key=? ke "right"))
+               (stop-ship g)
+               g)])))
 
 
 (@htdf handle-key)
@@ -142,11 +256,9 @@
 (check-expect (handle-key G0 "left") G0)
 (check-expect (handle-key G0 "a") G0)
 
-(check-expect (handle-key G1 "a") G1)
 (check-expect (handle-key G1 "left")
-              (make-game (- 100 SHIP-SPEED) empty empty false))
-(check-expect (handle-key G1 "right")
-              (make-game (+ 100 SHIP-SPEED) empty empty false))
+              (make-game (make-ship 100 (- SHIP-SPEED)) empty empty false))
+(check-expect (handle-key G1 " ") G1)
 
 (check-expect (handle-key G2 "a") G2)
 (check-expect (handle-key G2 "left") G2)
@@ -168,40 +280,35 @@
 
 (@htdf handle-key-game)
 (@signature Game KeyEvent -> Game)
-;; move with arrow keys, shoot with space
+;; shoot with space!!!, set speed with arrow keys
 (check-expect (handle-key-game G1 "left")
-              (make-game (- 100 SHIP-SPEED) empty empty false))
-(check-expect (handle-key-game G1 "right")
-              (make-game (+ 100 SHIP-SPEED) empty empty false))
+              (make-game (make-ship 100 (- SHIP-SPEED)) empty empty false))
+(check-expect (handle-key-game G3 "right")
+              (make-game (make-ship 70 SHIP-SPEED) empty empty false))
 (check-expect (handle-key-game G1 "a") G1)
-; !!! space to shoot
 
 (@template-origin KeyEvent)
 (define (handle-key-game g ke)
-  (cond [(key=? ke "left") (ship-move g (- SHIP-SPEED))]
-        [(key=? ke "right") (ship-move g SHIP-SPEED)]
-        [(key=? ke " ") (ship-shoot g)]
-        [else g]))
+  (local [(define s (game-ship g))
+          (define left-ship (make-ship (ship-x s) (- SHIP-SPEED)))
+          (define right-ship (make-ship (ship-x s) SHIP-SPEED))]
+    (cond [(key=? ke "left") (make-game left-ship
+                                        (game-lasers g)
+                                        (game-aliens g)
+                                        (game-over? g))]
+          [(key=? ke "right") (make-game right-ship
+                                         (game-lasers g)
+                                         (game-aliens g)
+                                         (game-over? g))]
+          [(key=? ke " ") (shoot g)]
+          [else g])))
 
 
-(@htdf ship-move)
-(@signature Game Number -> Game)
-;; move ship by n, don't go past walls !!!
-(check-expect (ship-move G1 5)
-              (make-game (+ 100 5) empty empty false))
-(check-expect (ship-move G1 -4)
-              (make-game (+ 100 -4) empty empty false))
-
-(define (ship-move g n)
-  (make-game (+ (game-ship-x g) n)
-             (game-lasers g) (game-aliens g) (game-over? g)))
-
-
-(@htdf ship-shoot)
+(@htdf shoot)
 (@signature Game -> Game)
 ;; shoot a laster from the ship's position
 ; !!!
-(define (ship-shoot g) g)
+(define (shoot g) g)
         
 
 
