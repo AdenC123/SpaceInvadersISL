@@ -54,21 +54,24 @@
 (define SHIP-EXPLODE (scale 0.3 (bitmap/file "sprites/ship_exploded.png")))
 (define SHIP-Y (- HEIGHT 30))
 (define SHIP-X-START (/ WIDTH 2))
-(define SHIP-SPEED 6) ;; pixels per tick
+(define SHIP-SPEED 6)
 (define MIN-SHIP-X (/ (image-width SHIP) 2))
 (define MAX-SHIP-X (- WIDTH (/ (image-width SHIP) 2)))
 
-(define LASER-PLAYER (rectangle 1 15 "solid" "white"))
-(define LASER-PLAYER-SPEED 10)
+(define PLAYER-LASER (rectangle 1.5 15 "solid" "white"))
+(define PLAYER-LASER-SPEED 20)
+(define PLAYER-LASER-Y (- HEIGHT 40))
 (define LASER-MAX-Y (+ 15 HEIGHT))
 (define LASER-MIN-Y -15)
 
-;; laser images for aliens
+(define ALIEN-LASER-ANIMATION-SPEED 5)
+(define ALIEN-LASER-SPEED 5)
 (define ALIEN-LASER-SCALE 2)
+
+;; alien laser images
 (define WIGGLE1 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle1.png")))
 (define WIGGLE2 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle2.png")))
 (define WIGGLE3 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle3.png")))
-(define WIGGLE4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle4.png")))
 (define WIGGLE4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle4.png")))
 (define STR1 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/straight1.png")))
 (define STR2 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/straight2.png")))
@@ -81,6 +84,29 @@
 
 ;; =================
 ;; Data definitions:
+
+(@htdd Animation)
+(define-struct ani (img id next))
+;; Animation is (make-ani Image Natural Natural|false)
+;; interp. an animation that cycles through a group of images
+;;         img is the current frame
+;;         id is the id for this frame
+;;         next is the ID for the next animation in the cycle, false if none
+;; examples are exhaustive
+(define WIGGLE1ANI (make-ani WIGGLE1 0 1))
+(define WIGGLE2ANI (make-ani WIGGLE2 1 2))
+(define WIGGLE3ANI (make-ani WIGGLE3 2 3))
+(define WIGGLE4ANI (make-ani WIGGLE4 3 0))
+(define STR1ANI (make-ani STR1 4 5))
+(define STR2ANI (make-ani STR2 5 6))
+(define STR3ANI (make-ani STR3 6 7))
+(define STR4ANI (make-ani STR4 7 4))
+(define ZIGZAG1ANI (make-ani ZIGZAG1 8 9))
+(define ZIGZAG2ANI (make-ani ZIGZAG2 9 10))
+(define ZIGZAG3ANI (make-ani ZIGZAG3 10 11))
+(define ZIGZAG4ANI (make-ani ZIGZAG4 11 8))
+;; !!! add aliens
+
 
 (@htdd Ship)
 (define-struct ship (x speed))
@@ -102,27 +128,17 @@
 (define PL2 (make-player-laser 200 300))
 (define LOPL (list PL1 PL2))
 
-
-(@htdd AlienLaserImage)
-(define-struct ali (img id))
-;; AlienLaserImage is (make-ali Image Natural)
-;; interp. contains all alien laser images and their image IDs
-;; examples are exhaustive
-(define WIGGLE1ALI (make-ali WIGGLE1 1))
-;; !!!
-
   
 (@htdd AlienLaser)
-(define-struct alien-laser (x y img timer))
-;; AlienLaser is (make-alien-laser Number Number AlienLaserImage Natural)
+(define-struct alien-laser (x y ani timer))
+;; AlienLaser is (make-alien-laser Number Number Animation Natural)
 ;; interp. a laser fired by an alien
 ;;         x and y are screen coordinates of the center of the laser
-;;         img is which laser sprite the laser currently has
+;;         ani is the animation, with current and next frame
 ;;         timer is the number of ticks left until a sprite change
-;; !!!
-
-
-
+(define AL1 (make-alien-laser 50 30 WIGGLE1ANI 5))
+(define AL2 (make-alien-laser 60 40 WIGGLE1ANI 0))
+(define AL3 (make-alien-laser 60 40 WIGGLE2ANI 5))
 
 
 (@htdd Alien)
@@ -130,25 +146,29 @@
 
 
 (@htdd Game)
-(define-struct game (ship lasers aliens over?))
+(define-struct game (ship lasers aliens timer over?))
 ;; Game is one of:
 ;;  - false
-;;  - (make-game Ship (listof Laser) (listof Alien) Boolean)
+;;  - (make-game Ship (listof Laser) (listof Alien) Natural Boolean)
 ;; interp. Represents the state of the game.
 ;;    false means game has not started yet
 ;;    ship-x is x position of the ship
 ;;    lasers is a list of all lasers on the screen
 ;;    aliens is a list of all aliens on the screen
+;;    timer is the ticks left until an alien fires a shot (if aliens not empty)
 ;;    over? is false normally, but becomes true when the player loses
 (define G0 false)
-(define G1 (make-game (make-ship 100 0) empty empty false))
-(define G2 (make-game (make-ship 50 5) empty empty true))
-(define G3 (make-game (make-ship 70 -5) empty empty false))
+(define G1 (make-game (make-ship 100 0) empty empty 0 false))
+(define G2 (make-game (make-ship 50 5) empty empty 0 true))
+(define G3 (make-game (make-ship 70 -5) empty empty 0 false))
 (define GSTART (make-game (make-ship SHIP-X-START 0)
-                          empty empty false)) ;; add aliens to this
+                          empty empty 0 false)) ;; add aliens to this
 (define G5 (make-game (make-ship 200 0)
                       (list PL1 PL2)
-                      empty false))
+                      empty 0 false))
+(define G6 (make-game (make-ship 200 0)
+                      (list AL1 AL3)
+                      empty 0 false))
 ;; !!! examples with aliens
 
 
@@ -176,7 +196,7 @@
 (check-expect (tock G1) G1)
 (check-expect (tock G2) G2)
 (check-expect (tock G3)
-              (make-game (make-ship 65 -5) empty empty false))
+              (make-game (make-ship 65 -5) empty empty 0 false))
 
 (@template-origin Game fn-composition)
 (define (tock g)
@@ -184,11 +204,19 @@
             (make-game (tock-ship (game-ship g))
                        (game-lasers g)
                        (game-aliens g)
+                       (game-timer g)
                        (game-over? g)))]
     (cond [(false? g) g]
           [(game-over? g) g]
           [else
-           (tock-aliens (tock-lasers (tock-ship-game g)))])))
+           (tock-timer (tock-aliens (tock-lasers (tock-ship-game g))))])))
+
+
+(@htdf tock-timer)
+(@signature Game -> Game)
+;; subtract 1 from the timer or loop it
+;; !!!
+(define (tock-timer g) g)
 
 
 (@htdf tock-ship)
@@ -227,9 +255,81 @@
 
 (@htdf tock-lasers)
 (@signature Game -> Game)
-;; move lasers, delete offscreen, check collisions
-;; !!!
-(define (tock-lasers g) g)
+;; move lasers, delete offscreen, update alien laser animation, check collisions
+(check-expect (tock-lasers G1) G1)
+(check-expect (tock-lasers (make-game (make-ship 0 0)
+                                      (list PL1)
+                                      empty 0 false))
+              (make-game (make-ship 0 0)
+                         (list (make-player-laser
+                                100 (- 50 PLAYER-LASER-SPEED)))
+                         empty 0 false))
+(check-expect (tock-lasers (make-game (make-ship 0 0)
+                                      (list PL2 AL1)
+                                      empty 0 false))
+              (make-game (make-ship 0 0)
+                         (list (make-player-laser
+                                200 (- 300 PLAYER-LASER-SPEED))
+                               (make-alien-laser
+                                50 (+ 30 ALIEN-LASER-SPEED) WIGGLE1ANI 5))
+                         empty 0 false))
+(check-expect (tock-lasers (make-game (make-ship 0 0)
+                                      (list (make-player-laser 50 -99999)
+                                            (make-alien-laser 60 99999
+                                                              WIGGLE1ANI 5))
+                                      empty 0 false))
+              (make-game (make-ship 0 0)
+                         empty
+                         empty 0 false))
+; !!! add game end collision test, alien collision test, laser animation test 
+
+(define (tock-lasers g)
+  (local [(define lol (game-lasers g))
+          (define (onscreen? l)
+            (cond [(player-laser? l) (> (player-laser-y l) LASER-MIN-Y)]
+                  [else (< (alien-laser-y l) LASER-MAX-Y)]))
+          (define (move-laser l)
+            (cond [(player-laser? l)
+                   (make-player-laser
+                    (player-laser-x l)
+                    (- (player-laser-y l) PLAYER-LASER-SPEED))]
+                  [else
+                   (make-alien-laser
+                    (alien-laser-x l)
+                    (+ (alien-laser-y l) ALIEN-LASER-SPEED)
+                    (alien-laser-ani l) (alien-laser-timer l))]))]
+    (if (laser-on-ship? g)
+        (make-game
+         (game-ship g) empty (game-aliens g) (game-timer g) true)
+        
+        (handle-alien-collision
+         (make-game
+          (game-ship g)
+          (map update-alien-laser-ani
+               (filter onscreen?
+                       (map move-laser lol)))
+          (game-aliens g) (game-timer g) (game-over? g))))))
+
+
+(@htdf laser-on-ship?)
+(@signature Game -> Boolean)
+;; produce true if an alien laser is colliding with the ship
+; !!!
+(define (laser-on-ship? g) false)
+
+
+(@htdf handle-alien-collision)
+(@signature Game -> Game)
+;; explode all aliens in collision with a laser, and delete the laser
+; !!!
+(define (handle-alien-collision g) g)
+
+
+(@htdf update-alien-laser-ani)
+(@signature AlienLaser -> AlienLaser)
+;; sub1 from the animation timer, if 0, update the sprite and reset the timer
+; !!!
+(define (update-alien-laser-ani l) l)
 
 
 (@htdf tock-aliens)
@@ -269,7 +369,7 @@
 
 (@template-origin fn-composition)
 (define (render-game g)
-  (place-aliens g (place-lasers g (place-ship g MTS))))
+  (place-ship g (place-aliens g (place-lasers g MTS))))
 
 
 (@htdf place-ship)
@@ -294,20 +394,43 @@
 
 (@htdf place-lasers)
 (@signature Game Image -> Image)
-;; place all lasers onto i, update timer & change sprite for alien lasers!!!
-(check-expect (place-lasers G0 MTS) MTS)
+;; place all lasers onto i
 (check-expect (place-lasers G1 (square 10 "solid" "purple"))
-                            (square 10 "solid" "purple"))
+              (square 10 "solid" "purple"))
 (check-expect (place-lasers G1 (square 10 "solid" "purple"))
-                            (square 10 "solid" "purple"))
+              (square 10 "solid" "purple"))
 (check-expect (place-lasers G2 MTS) MTS)
 
 (check-expect (place-lasers (make-game (make-ship 0 0) (list PL1)
-                                       empty false) MTS)
-              (place-image LASER-PLAYER 100 50 MTS))
+                                       empty 0 false) MTS)
+              (place-image PLAYER-LASER 100 50 MTS))
+(check-expect (place-lasers (make-game (make-ship 0 0) (list PL1 PL2)
+                                       empty 0 false) MTS)
+              (place-image PLAYER-LASER 100 50
+                           (place-image PLAYER-LASER 200 300 MTS)))
+(check-expect (place-lasers (make-game (make-ship 0 0) (list AL1 AL3)
+                                       empty 0 false) MTS)
+              (place-image WIGGLE1 50 30
+                           (place-image WIGGLE2 60 40 MTS)))
 
-
-(define (place-lasers g i) i)
+(@template-origin use-abstract-fn fn-composition)
+(define (place-lasers g i)
+  (local [(define player-lasers (filter player-laser? (game-lasers g)))
+          (define alien-lasers (filter alien-laser? (game-lasers g)))
+          (define (place-alien-lasers lol i)
+            (foldr place-alien-laser i lol))
+          (define (place-player-lasers lol i)
+            (foldr place-player-laser i lol))
+          (define (place-alien-laser l i)
+            (place-image (ani-img (alien-laser-ani l))
+                         (alien-laser-x l) (alien-laser-y l)
+                         i))
+          (define (place-player-laser l i)
+            (place-image PLAYER-LASER
+                         (player-laser-x l) (player-laser-y l)
+                         i))]
+    (place-alien-lasers alien-lasers
+                        (place-player-lasers player-lasers i))))
 
 
 (@htdf place-aliens)
@@ -325,16 +448,17 @@
 
 (check-expect (handle-release G1 "left") G1)
 (check-expect (handle-release G3 "left")
-              (make-game (make-ship 70 0) empty empty false))
+              (make-game (make-ship 70 0) empty empty 0 false))
 (check-expect (handle-release G3 "right")
-              (make-game (make-ship 70 0) empty empty false))
+              (make-game (make-ship 70 0) empty empty 0 false))
 (check-expect (handle-release G3 "a") G3)
 
 (@template-origin Game)
 (define (handle-release g ke)
   (local [(define (stop-ship g)
             (make-game (make-ship (ship-x (game-ship g)) 0)
-                       (game-lasers g) (game-aliens g) (game-over? g)))]
+                       (game-lasers g) (game-aliens g)
+                       (game-timer g) (game-over? g)))]
     (cond [(false? g) g]
           [(game-over? g) g]
           [else
@@ -351,8 +475,11 @@
 (check-expect (handle-key G0 "a") G0)
 
 (check-expect (handle-key G1 "left")
-              (make-game (make-ship 100 (- SHIP-SPEED)) empty empty false))
-(check-expect (handle-key G1 " ") G1)
+              (make-game (make-ship 100 (- SHIP-SPEED)) empty empty 0 false))
+(check-expect (handle-key G1 " ")
+              (make-game (make-ship 100 0)
+                         (list (make-player-laser 100 PLAYER-LASER-Y))
+                         empty 0 false))
 
 (check-expect (handle-key G2 "a") G2)
 (check-expect (handle-key G2 "left") G2)
@@ -374,11 +501,11 @@
 
 (@htdf handle-key-game)
 (@signature Game KeyEvent -> Game)
-;; shoot with space!!!, set speed with arrow keys
+;; shoot with space, set speed with arrow keys
 (check-expect (handle-key-game G1 "left")
-              (make-game (make-ship 100 (- SHIP-SPEED)) empty empty false))
+              (make-game (make-ship 100 (- SHIP-SPEED)) empty empty 0 false))
 (check-expect (handle-key-game G3 "right")
-              (make-game (make-ship 70 SHIP-SPEED) empty empty false))
+              (make-game (make-ship 70 SHIP-SPEED) empty empty 0 false))
 (check-expect (handle-key-game G1 "a") G1)
 
 (@template-origin KeyEvent)
@@ -389,10 +516,12 @@
     (cond [(key=? ke "left") (make-game left-ship
                                         (game-lasers g)
                                         (game-aliens g)
+                                        (game-timer g)
                                         (game-over? g))]
           [(key=? ke "right") (make-game right-ship
                                          (game-lasers g)
                                          (game-aliens g)
+                                         (game-timer g)
                                          (game-over? g))]
           [(key=? ke " ") (shoot g)]
           [else g])))
@@ -400,9 +529,23 @@
 
 (@htdf shoot)
 (@signature Game -> Game)
-;; shoot a laster from the ship's position
-; !!!
-(define (shoot g) g)
+;; shoot a laser from the ship's position
+(check-expect (shoot G1)
+              (make-game (make-ship 100 0)
+                         (list (make-player-laser 100 PLAYER-LASER-Y))
+                         empty 0 false))
+(check-expect (shoot G5)
+              (make-game (make-ship 200 0)
+                         (list (make-player-laser 200 PLAYER-LASER-Y)
+                               PL1 PL2)
+                         empty 0 false))
+ 
+(define (shoot g)
+  (local [(define new-laser
+            (make-player-laser (ship-x (game-ship g)) PLAYER-LASER-Y))]
+    (make-game (game-ship g)
+               (cons new-laser (game-lasers g))
+               (game-aliens g) (game-timer g) (game-over? g))))
         
 
 
