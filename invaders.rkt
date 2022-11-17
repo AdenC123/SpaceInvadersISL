@@ -64,9 +64,9 @@
 (define LASER-MAX-Y (+ 15 HEIGHT))
 (define LASER-MIN-Y -15)
 
-(define ALIEN-LASER-ANIMATION-SPEED 5)
-(define ALIEN-LASER-SPEED 5)
-(define ALIEN-LASER-SCALE 2)
+(define ALIEN-LASER-ANIMATION-SPEED 1) ;; smaller is faster
+(define ALIEN-LASER-SPEED 7)
+(define ALIEN-LASER-SCALE 2.5)
 
 ;; alien laser images
 (define WIGGLE1 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle1.png")))
@@ -105,7 +105,18 @@
 (define ZIGZAG2ANI (make-ani ZIGZAG2 9 10))
 (define ZIGZAG3ANI (make-ani ZIGZAG3 10 11))
 (define ZIGZAG4ANI (make-ani ZIGZAG4 11 8))
-;; !!! add aliens
+
+(define ANIS (list WIGGLE1ANI WIGGLE2ANI WIGGLE3ANI WIGGLE4ANI
+                   STR1ANI STR2ANI STR3ANI STR4ANI
+                   ZIGZAG1ANI ZIGZAG2ANI ZIGZAG3ANI ZIGZAG4ANI))
+; !!! add aliens
+;; primitive to get an ani using its id
+(define (get-ani id)
+  (local [(define (id? a)
+            (= (ani-id a) id))]
+    (first (filter id? ANIS))))
+
+
 
 
 (@htdd Ship)
@@ -139,6 +150,17 @@
 (define AL1 (make-alien-laser 50 30 WIGGLE1ANI 5))
 (define AL2 (make-alien-laser 60 40 WIGGLE1ANI 0))
 (define AL3 (make-alien-laser 60 40 WIGGLE2ANI 5))
+(define ALL-ALIEN-LASERS
+  (list (make-alien-laser 100 0 WIGGLE1ANI ALIEN-LASER-ANIMATION-SPEED)
+        (make-alien-laser 200 0 STR1ANI ALIEN-LASER-ANIMATION-SPEED)
+        (make-alien-laser 300 0 ZIGZAG1ANI ALIEN-LASER-ANIMATION-SPEED)))
+
+
+(@htdd Laser)
+;; Laser is one of:
+;; - PlayerLaser
+;; - AlienLaser
+;; interp. either a player or alien laser
 
 
 (@htdd Alien)
@@ -157,17 +179,21 @@
 ;;    aliens is a list of all aliens on the screen
 ;;    timer is the ticks left until an alien fires a shot (if aliens not empty)
 ;;    over? is false normally, but becomes true when the player loses
+
+(define GSTART (make-game (make-ship SHIP-X-START 0)
+                          empty empty 0 false)) ;; add aliens to this
+
 (define G0 false)
 (define G1 (make-game (make-ship 100 0) empty empty 0 false))
 (define G2 (make-game (make-ship 50 5) empty empty 0 true))
 (define G3 (make-game (make-ship 70 -5) empty empty 0 false))
-(define GSTART (make-game (make-ship SHIP-X-START 0)
-                          empty empty 0 false)) ;; add aliens to this
 (define G5 (make-game (make-ship 200 0)
                       (list PL1 PL2)
                       empty 0 false))
 (define G6 (make-game (make-ship 200 0)
                       (list AL1 AL3)
+                      empty 0 false))
+(define G7 (make-game (make-ship SHIP-X-START 0) ALL-ALIEN-LASERS
                       empty 0 false))
 ;; !!! examples with aliens
 
@@ -271,12 +297,12 @@
                          (list (make-player-laser
                                 200 (- 300 PLAYER-LASER-SPEED))
                                (make-alien-laser
-                                50 (+ 30 ALIEN-LASER-SPEED) WIGGLE1ANI 5))
+                                50 (+ 30 ALIEN-LASER-SPEED) WIGGLE1ANI 4))
                          empty 0 false))
 (check-expect (tock-lasers (make-game (make-ship 0 0)
                                       (list (make-player-laser 50 -99999)
                                             (make-alien-laser 60 99999
-                                                              WIGGLE1ANI 5))
+                                                              WIGGLE1ANI 4))
                                       empty 0 false))
               (make-game (make-ship 0 0)
                          empty
@@ -326,10 +352,24 @@
 
 
 (@htdf update-alien-laser-ani)
-(@signature AlienLaser -> AlienLaser)
+(@signature Laser -> Laser)
 ;; sub1 from the animation timer, if 0, update the sprite and reset the timer
-; !!!
-(define (update-alien-laser-ani l) l)
+(check-expect (update-alien-laser-ani PL1) PL1)
+(check-expect (update-alien-laser-ani AL1)
+              (make-alien-laser 50 30 WIGGLE1ANI 4))
+(check-expect (update-alien-laser-ani AL2)
+              (make-alien-laser 60 40 WIGGLE2ANI ALIEN-LASER-ANIMATION-SPEED))
+
+(define (update-alien-laser-ani l)
+  (cond [(player-laser? l) l]
+        [(> (alien-laser-timer l) 0)
+         (make-alien-laser (alien-laser-x l) (alien-laser-y l)
+                           (alien-laser-ani l) (sub1 (alien-laser-timer l)))]
+        [else
+         (local [(define next-ani (ani-next (alien-laser-ani l)))]
+           (make-alien-laser (alien-laser-x l) (alien-laser-y l)
+                             (get-ani (ani-next (alien-laser-ani l)))
+                             ALIEN-LASER-ANIMATION-SPEED))]))
 
 
 (@htdf tock-aliens)
@@ -546,19 +586,6 @@
     (make-game (game-ship g)
                (cons new-laser (game-lasers g))
                (game-aliens g) (game-timer g) (game-over? g))))
-        
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
