@@ -106,17 +106,17 @@
 (define ZIGZAG3ANI (make-ani ZIGZAG3 10 11))
 (define ZIGZAG4ANI (make-ani ZIGZAG4 11 8))
 
+;; exhaustive list of all animations for id checker
 (define ANIS (list WIGGLE1ANI WIGGLE2ANI WIGGLE3ANI WIGGLE4ANI
                    STR1ANI STR2ANI STR3ANI STR4ANI
                    ZIGZAG1ANI ZIGZAG2ANI ZIGZAG3ANI ZIGZAG4ANI))
 ; !!! add aliens
+
 ;; primitive to get an ani using its id
 (define (get-ani id)
   (local [(define (id? a)
             (= (ani-id a) id))]
     (first (filter id? ANIS))))
-
-
 
 
 (@htdd Ship)
@@ -307,7 +307,7 @@
               (make-game (make-ship 0 0)
                          empty
                          empty 0 false))
-; !!! add game end collision test, alien collision test, laser animation test 
+; !!! add game end collision test, alien collision test
 
 (define (tock-lasers g)
   (local [(define lol (game-lasers g))
@@ -351,6 +351,93 @@
 (define (handle-alien-collision g) g)
 
 
+(@htdf colliding?)
+(@signature Number Number Image Number Number Image -> Boolean)
+;; given 2 images and their center position, produce true if they overlap
+(check-expect (colliding? 0 0 (square 10 "solid" "purple")
+                          0 0 (square 20 "solid" "purple"))
+              true)
+
+(check-expect (colliding? 30 30 (rectangle 20 10 "solid" "purple")
+                          45 30 (square 10 "solid" "purple"))
+              false)
+(check-expect (colliding? 30 30 (rectangle 20 10 "solid" "purple")
+                          45 30 (square 11 "solid" "purple"))
+              true)
+(check-expect (colliding? 30 30 (rectangle 20 10 "solid" "purple")
+                          44 30 (square 10 "solid" "purple"))
+              true)
+
+(check-expect (colliding? 30 30 (rectangle 20 10 "solid" "purple")
+                          30 35 (square 1 "solid" "purple"))
+              true)
+(check-expect (colliding? 30 30 (rectangle 20 10 "solid" "purple")
+                          30 36 (square 1 "solid" "purple"))
+              false)
+(check-expect (colliding? 30 30 (rectangle 20 10 "solid" "purple")
+                          30 25 (square 1 "solid" "purple"))
+              true)
+(check-expect (colliding? 30 30 (rectangle 20 10 "solid" "purple")
+                          30 24 (square 1 "solid" "purple"))
+              false)
+
+(check-expect (colliding? 30 30 (rectangle 20 10 "solid" "purple")
+                          20 30 (square 1 "solid" "purple"))
+              true)
+(check-expect (colliding? 30 30 (rectangle 20 10 "solid" "purple")
+                          19 30 (square 1 "solid" "purple"))
+              false)
+(check-expect (colliding? 30 30 (rectangle 20 10 "solid" "purple")
+                          40 30 (square 1 "solid" "purple"))
+              true)
+(check-expect (colliding? 30 30 (rectangle 20 10 "solid" "purple")
+                          41 30 (square 1 "solid" "purple"))
+              false)
+
+(check-expect (colliding? 10 10 (square 10 "solid" "purple")
+                          90 10 (square 10 "solid" "purple"))
+              false)
+(check-expect (colliding? 10 10 (square 10 "solid" "purple")
+                          10 90 (square 10 "solid" "purple"))
+              false)
+
+(define (colliding? x1 y1 i1 x2 y2 i2)
+  (local [(define l1 (- x1 (/ (image-width i1) 2)))
+          (define r1 (+ x1 (/ (image-width i1) 2)))
+          (define d1 (- y1 (/ (image-height i1) 2)))
+          (define u1 (+ y1 (/ (image-height i1) 2)))
+          
+          (define l2 (- x2 (/ (image-width i2) 2)))
+          (define r2 (+ x2 (/ (image-width i2) 2)))
+          (define d2 (- y2 (/ (image-height i2) 2)))
+          (define u2 (+ y2 (/ (image-height i2) 2)))]
+    
+    (and (overlap? l1 r1 l2 r2)
+         (overlap? d1 u1 d2 u2))))
+
+
+(@htdf overlap?)
+(@signature Number Number Number Number -> Boolean)
+;; produce true if 2 number ranges overlap
+(check-expect (overlap? 10 20 20 30) false)
+(check-expect (overlap? 20 30 10 20) false)
+(check-expect (overlap? 10 20 19 30) true)
+(check-expect (overlap? 19 30 10 20) true)
+(check-expect (overlap? 50 60 30 50) false)
+(check-expect (overlap? 50 60 30 51) true)
+(check-expect (overlap? 10 90 30 40) true)
+(check-expect (overlap? 30 40 10 90) true)
+
+(define (overlap? l1 r1 l2 r2)
+  ; check every edge to see if it is in between the other range
+  ; and check if they are the exact same range
+  (or (< l2 l1 r2)
+      (< l2 r1 r2)
+      (< l1 l2 r1)
+      (< l1 r2 r1)
+      (and (= l1 l2) (= r1 r2))))
+
+
 (@htdf update-alien-laser-ani)
 (@signature Laser -> Laser)
 ;; sub1 from the animation timer, if 0, update the sprite and reset the timer
@@ -382,6 +469,7 @@
 (@htdf render)
 (@signature Game -> Image)
 ;; render start screen, game, or end screen on game
+; !!! add win screen
 (check-expect (render G0) START-SCREEN)
 (check-expect (render G1)
               (place-image SHIP 100 SHIP-Y MTS))
