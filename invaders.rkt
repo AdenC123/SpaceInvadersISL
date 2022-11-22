@@ -21,8 +21,10 @@
 ;; game constants
 (define START false)
 
-(define SHIP (scale 0.3 (bitmap/file "sprites/ship.png")))
-(define SHIP-EXPLODE (scale 0.3 (bitmap/file "sprites/ship_exploded.png")))
+(define SHIP-SCALE 0.25)
+(define SHIP (scale SHIP-SCALE (bitmap/file "sprites/ship.png")))
+(define SHIP-EXPLODE (scale SHIP-SCALE
+                            (bitmap/file "sprites/ship_exploded.png")))
 (define SHIP-Y (- HEIGHT 30))
 (define SHIP-X-START (/ WIDTH 2))
 (define SHIP-SPEED 6)
@@ -93,7 +95,7 @@
 (define ZIGZAG4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag4.png")))
 
 ;; alien images
-(define ALIEN-SCALE 3)
+(define ALIEN-SCALE 2.5)
 (define ARMS1 (scale ALIEN-SCALE (bitmap/file "sprites/arms1.png")))
 (define ARMS2 (scale ALIEN-SCALE (bitmap/file "sprites/arms2.png")))
 (define METROID1 (scale ALIEN-SCALE (bitmap/file "sprites/metroid1.png")))
@@ -270,7 +272,7 @@
 (@htdf tock)
 (@signature Game -> Game)
 ;; advance ship, lasers, aliens by one tick
-; !!! add game won state, stop aliens when one is exploding
+; !!! add game won state, don't tick aliens when one is exploding
 (check-expect (tock G0) G0)
 (check-expect (tock G1) G1)
 (check-expect (tock G2) G2)
@@ -679,8 +681,17 @@
 (@htdf place-aliens)
 (@signature Game Image -> Image)
 ;; place all aliens onto i
-; !!!
-(define (place-aliens g i) i)
+(check-expect (place-aliens G8 (square 30 "solid" "purple"))
+              (place-image ARMS1 100 200 (square 30 "solid" "purple")))
+(check-expect (place-aliens G9 MTS)
+              (place-image ARMS1 100 200
+                           (place-image ARMS2 50 70 MTS)))
+
+(define (place-aliens g i)
+  (local [(define (place-alien a i)
+            (place-image (ani-img (alien-ani a))
+                         (alien-x a) (alien-y a) i))]
+  (foldr place-alien i (game-aliens g))))
 
 
 (@htdf handle-release)
@@ -713,6 +724,7 @@
 (@htdf handle-key)
 (@signature Game KeyEvent -> Game)
 ;; handle keys for start and end screens
+; !!! restart on win screen
 (check-expect (handle-key G0 " ") GSTART)
 (check-expect (handle-key G0 "left") G0)
 (check-expect (handle-key G0 "a") G0)
