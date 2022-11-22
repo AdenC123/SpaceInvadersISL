@@ -95,13 +95,14 @@
 (define ZIGZAG4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag4.png")))
 
 ;; alien images
-(define ALIEN-SCALE 2.5)
+(define ALIEN-SCALE 0.3)
 (define ARMS1 (scale ALIEN-SCALE (bitmap/file "sprites/arms1.png")))
 (define ARMS2 (scale ALIEN-SCALE (bitmap/file "sprites/arms2.png")))
 (define METROID1 (scale ALIEN-SCALE (bitmap/file "sprites/metroid1.png")))
 (define METROID2 (scale ALIEN-SCALE (bitmap/file "sprites/metroid2.png")))
 (define OCTOPUS1 (scale ALIEN-SCALE (bitmap/file "sprites/octopus1.png")))
 (define OCTOPUS2 (scale ALIEN-SCALE (bitmap/file "sprites/octopus2.png")))
+(define ALIEN-EXPLODE (scale 0.25 (bitmap/file "sprites/exploded.png")))
 
 (define ALIEN-MIN-X (/ (image-width ARMS1) 2))
 (define ALIEN-MAX-X (- WIDTH (/ (image-width ARMS1) 2)))
