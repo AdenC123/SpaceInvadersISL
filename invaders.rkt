@@ -11,14 +11,40 @@
 ;; =================
 ;; Constants:
 
-(define START false)
-
+;; screen constants
 (define WIDTH 500)
 (define HEIGHT 500)
 
 (define MTS (rectangle WIDTH HEIGHT "solid" "black"))
 (define EMPTY (rectangle WIDTH HEIGHT "solid" "transparent"))
 
+;; game constants
+(define START false)
+
+(define SHIP (scale 0.3 (bitmap/file "sprites/ship.png")))
+(define SHIP-EXPLODE (scale 0.3 (bitmap/file "sprites/ship_exploded.png")))
+(define SHIP-Y (- HEIGHT 30))
+(define SHIP-X-START (/ WIDTH 2))
+(define SHIP-SPEED 6)
+(define MIN-SHIP-X (/ (image-width SHIP) 2))
+(define MAX-SHIP-X (- WIDTH (/ (image-width SHIP) 2)))
+
+(define LASER-MAX-Y (+ 15 HEIGHT))
+(define LASER-MIN-Y -15)
+
+(define PLAYER-LASER (rectangle 1.5 15 "solid" "white"))
+(define PLAYER-LASER-SPEED 20)
+(define PLAYER-LASER-Y (- HEIGHT 40))
+
+(define ALIEN-LASER-ANIMATION-SPEED 1) ;; smaller is faster
+(define ALIEN-LASER-SPEED 7)
+
+(define ALIEN-JUMP-X 10)
+(define ALIEN-JUMP-Y 30)
+(define ALIEN-TICKS-START 14) ;; game ticks 28 times per sec
+(define TIMER-START 10) ;; alien shot timer
+
+;; screen images
 (define START-SCREEN
   (local [(define LOGO (scale 0.5 (bitmap/file "startscreen/logo.png")))
           (define KEYS (scale 0.3 (bitmap/file "startscreen/arrowkeys.png")))
@@ -49,26 +75,10 @@
        R-KEY 215 300
        (place-image
         RESTART 340 300 EMPTY))))))
-
-(define SHIP (scale 0.3 (bitmap/file "sprites/ship.png")))
-(define SHIP-EXPLODE (scale 0.3 (bitmap/file "sprites/ship_exploded.png")))
-(define SHIP-Y (- HEIGHT 30))
-(define SHIP-X-START (/ WIDTH 2))
-(define SHIP-SPEED 6)
-(define MIN-SHIP-X (/ (image-width SHIP) 2))
-(define MAX-SHIP-X (- WIDTH (/ (image-width SHIP) 2)))
-
-(define PLAYER-LASER (rectangle 1.5 15 "solid" "white"))
-(define PLAYER-LASER-SPEED 20)
-(define PLAYER-LASER-Y (- HEIGHT 40))
-(define LASER-MAX-Y (+ 15 HEIGHT))
-(define LASER-MIN-Y -15)
-
-(define ALIEN-LASER-ANIMATION-SPEED 1) ;; smaller is faster
-(define ALIEN-LASER-SPEED 7)
-(define ALIEN-LASER-SCALE 2.5)
+; !!! win screen
 
 ;; alien laser images
+(define ALIEN-LASER-SCALE 2.5)
 (define WIGGLE1 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle1.png")))
 (define WIGGLE2 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle2.png")))
 (define WIGGLE3 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle3.png")))
@@ -81,6 +91,15 @@
 (define ZIGZAG2 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag2.png")))
 (define ZIGZAG3 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag3.png")))
 (define ZIGZAG4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag4.png")))
+
+;; alien images
+(define ALIEN-SCALE 3)
+(define ARMS1 (scale ALIEN-SCALE (bitmap/file "sprites/arms1.png")))
+(define ARMS2 (scale ALIEN-SCALE (bitmap/file "sprites/arms2.png")))
+(define METROID1 (scale ALIEN-SCALE (bitmap/file "sprites/metroid1.png")))
+(define METROID2 (scale ALIEN-SCALE (bitmap/file "sprites/metroid2.png")))
+(define OCTOPUS1 (scale ALIEN-SCALE (bitmap/file "sprites/octopus1.png")))
+(define OCTOPUS2 (scale ALIEN-SCALE (bitmap/file "sprites/octopus2.png")))
 
 ;; =================
 ;; Data definitions:
@@ -106,17 +125,29 @@
 (define ZIGZAG3ANI (make-ani ZIGZAG3 10 11))
 (define ZIGZAG4ANI (make-ani ZIGZAG4 11 8))
 
+(define ARMS1ANI (make-ani ARMS1 12 13))
+(define ARMS2ANI (make-ani ARMS2 13 12))
+(define METROID1ANI (make-ani METROID1 14 15))
+(define METROID2ANI (make-ani METROID2 15 14))
+(define OCTOPUS1ANI (make-ani OCTOPUS1 16 17))
+(define OCTOPUS2ANI (make-ani OCTOPUS2 17 18))
+
 ;; exhaustive list of all animations for id checker
 (define ANIS (list WIGGLE1ANI WIGGLE2ANI WIGGLE3ANI WIGGLE4ANI
                    STR1ANI STR2ANI STR3ANI STR4ANI
-                   ZIGZAG1ANI ZIGZAG2ANI ZIGZAG3ANI ZIGZAG4ANI))
-; !!! add aliens
+                   ZIGZAG1ANI ZIGZAG2ANI ZIGZAG3ANI ZIGZAG4ANI
+                   ARMS1ANI ARMS2ANI
+                   METROID1ANI METROID2ANI
+                   OCTOPUS1ANI OCTOPUS2ANI))
 
 ;; primitive to get an ani using its id
 (define (get-ani id)
   (local [(define (id? a)
-            (= (ani-id a) id))]
-    (first (filter id? ANIS))))
+            (= (ani-id a) id))
+          (define l (filter id? ANIS))]
+    (if (= (length l) 1)
+        (first (filter id? ANIS))
+        (error "Animation list error"))))
 
 
 (@htdd Ship)
@@ -165,7 +196,15 @@
 
 
 (@htdd Alien)
-;; !!!
+(define-struct alien (x y dir ticks ani))
+;; Alien is (make-alien Number Number String Natural Animation)
+;; interp. an alien enemy that moves towards the player and shoots lasers
+;;         x and y are the position in screen coordinates
+;;         dir is "left" or "right", the direction the alien will jump next
+;;         ticks is the number of ticks left until the next jump
+;;         ani is the current animation, changes on jump
+(define A1 (make-alien 100 200 "right" 20 ARMS1ANI))
+(define A2 (make-alien 50 70 "left" 0 ARMS2ANI))
 
 
 (@htdd Game)
@@ -182,7 +221,7 @@
 ;;    over? is false normally, but becomes true when the player loses
 
 (define GSTART (make-game (make-ship SHIP-X-START 0)
-                          empty empty 0 false)) ;; add aliens to this
+                          empty empty 0 false)) ; !!! add aliens to this
 
 (define G0 false)
 (define G1 (make-game (make-ship 100 0) empty empty 0 false))
@@ -196,7 +235,12 @@
                       empty 0 false))
 (define G7 (make-game (make-ship SHIP-X-START 0) ALL-ALIEN-LASERS
                       empty 0 false))
-;; !!! examples with aliens
+(define G8 (make-game (make-ship 100 0) empty
+                      (list A1 A2)
+                      0 false))
+(define G9 (make-game (make-ship 100 0) empty
+                      (list A1 A2)
+                      10 false))
 
 
 ;; =================
@@ -213,12 +257,13 @@
     (to-draw    render)           ;; Game -> Image
     (on-key     handle-key)       ;; Game KeyEvent -> Game
     (on-release handle-release))) ;; Game KeyEvent -> Game
-  
+
 
 
 (@htdf tock)
 (@signature Game -> Game)
 ;; advance ship, lasers, aliens by one tick
+; !!! add game won state
 (check-expect (tock G0) G0)
 (check-expect (tock G1) G1)
 (check-expect (tock G2) G2)
@@ -339,7 +384,7 @@
         (make-game
          (game-ship g) empty (game-aliens g) (game-timer g) true)
         
-        (handle-alien-collision
+        (handle-alien-collisions
          (make-game
           (game-ship g)
           (map update-alien-laser-ani
@@ -348,7 +393,7 @@
           (game-aliens g) (game-timer g) (game-over? g))))))
 
 
-(@htdf handle-alien-collision)
+(@htdf handle-alien-collisions)
 (@signature Game -> Game)
 ;; explode all aliens in collision with a laser, and delete the laser
 ; !!!
@@ -473,7 +518,7 @@
 (@htdf render)
 (@signature Game -> Image)
 ;; render start screen, game, or end screen on game
-; !!! add win screen
+; !!! add win screen, fix check-expects without aliens
 (check-expect (render G0) START-SCREEN)
 (check-expect (render G1)
               (place-image SHIP 100 SHIP-Y MTS))
