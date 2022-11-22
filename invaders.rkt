@@ -101,6 +101,9 @@
 (define OCTOPUS1 (scale ALIEN-SCALE (bitmap/file "sprites/octopus1.png")))
 (define OCTOPUS2 (scale ALIEN-SCALE (bitmap/file "sprites/octopus2.png")))
 
+(define ALIEN-MIN-X (/ (image-width ARMS1) 2))
+(define ALIEN-MAX-X (- WIDTH (/ (image-width ARMS1) 2)))
+
 ;; =================
 ;; Data definitions:
 
@@ -205,6 +208,7 @@
 ;;         ani is the current animation, changes on jump
 (define A1 (make-alien 100 200 "right" 20 ARMS1ANI))
 (define A2 (make-alien 50 70 "left" 0 ARMS2ANI))
+(define A3 (make-alien 10 100 "left" 0 METROID1ANI))
 
 
 (@htdd Game)
@@ -236,11 +240,14 @@
 (define G7 (make-game (make-ship SHIP-X-START 0) ALL-ALIEN-LASERS
                       empty 0 false))
 (define G8 (make-game (make-ship 100 0) empty
-                      (list A1 A2)
+                      (list A1)
                       0 false))
 (define G9 (make-game (make-ship 100 0) empty
                       (list A1 A2)
                       10 false))
+(define G10 (make-game (make-ship 100 0) empty
+                       (list A1 A3)
+                       10 false))
 
 
 ;; =================
@@ -263,7 +270,7 @@
 (@htdf tock)
 (@signature Game -> Game)
 ;; advance ship, lasers, aliens by one tick
-; !!! add game won state
+; !!! add game won state, stop aliens when one is exploding
 (check-expect (tock G0) G0)
 (check-expect (tock G1) G1)
 (check-expect (tock G2) G2)
@@ -286,9 +293,10 @@
 
 (@htdf tock-timer)
 (@signature Game -> Game)
-;; subtract 1 from the timer or loop it
-;; !!!
+;; update timer, if 0, shoot or delete exploded alien
+; !!!
 (define (tock-timer g) g)
+
 
 
 (@htdf tock-ship)
@@ -397,7 +405,7 @@
 (@signature Game -> Game)
 ;; explode all aliens in collision with a laser, and delete the laser
 ; !!!
-(define (handle-alien-collision g) g)
+(define (handle-alien-collisions g) g)
 
 
 (@htdf colliding?)
@@ -510,9 +518,67 @@
 
 (@htdf tock-aliens)
 (@signature Game -> Game)
-;; advance aliens by one tick
-;; !!!
-(define (tock-aliens g) g)
+;; update alien timers and move them if needed, update global timer
+(check-expect (tock-aliens G8)
+              (make-game (make-ship 100 0) empty
+                         (list
+                          (make-alien 100 200 "right" 19 ARMS1ANI))
+                         0 false))
+(check-expect (tock-aliens G9)
+              (make-game (make-ship 100 0) empty
+                         (list
+                          (make-alien 100 200 "right" 19 ARMS1ANI)
+                          (make-alien (- 50 ALIEN-JUMP-X)
+                                      70 "left" 
+                                      (alien-timer G9) ARMS1ANI))
+                         10 false))
+(check-expect (tock-aliens G10)
+              (make-game (make-ship 100 0) empty
+                         (list
+                          (make-alien 100 (+ 200 ALIEN-JUMP-Y)
+                                      "left" (alien-timer G10) ARMS2ANI)
+                          (make-alien 10 (+ 100 ALIEN-JUMP-Y)
+                                      "right" (alien-timer G10) METROID2ANI))
+                         10 false))
+
+(define (tock-aliens g)
+  (local [(define loa (game-aliens g))
+          (define (at-edge? a)
+            (and (not (zero? (alien-timer a)))
+                 (or (< (next-x a) ALIEN-MIN-X)
+                     (> (next-x a) ALIEN-MAX-X))))
+          (define (next-x a)
+            (cond [(string=? (alien-dir a) "right")
+                   (+ (alien-x a) ALIEN-JUMP-X)]
+                  [else
+                   (- (alien-x a) ALIEN-JUMP-X)]))
+          (define (tock-alien a)
+            (if (zero? (alien-ticks a))
+                (make-alien (next-x a) (alien-y a) (alien-dir a)
+                            (alien-timer g)
+                            (get-ani (ani-next (alien-ani a))))
+                (make-alien (alien-x a) (alien-y a) (alien-dir a)
+                            (sub1 (alien-ticks a)) (alien-ani a))))
+          (define (turn-around a)
+            (make-alien (alien-x a) (+ (alien-y a) ALIEN-JUMP-Y)
+                        (if (string=? (alien-dir a) "right")
+                            "left"
+                            "right")
+                        (alien-timer g)
+                        (get-ani (ani-next (alien-ani a)))))]
+    (make-game
+     (game-ship g) (game-lasers g)
+     (cond [(ormap at-edge? loa) (map turn-around loa)] 
+           [else
+            (map tock-alien loa)])
+     (game-timer g) (game-over? g))))
+
+
+(@htdf alien-timer)
+(@signature Game -> Natural)
+;; produce the new move ticks for the aliens based on the game state
+; !!!
+(define (alien-timer g) ALIEN-TICKS-START)
 
 
 (@htdf render)
@@ -613,7 +679,7 @@
 (@htdf place-aliens)
 (@signature Game Image -> Image)
 ;; place all aliens onto i
-;; !!!
+; !!!
 (define (place-aliens g i) i)
 
 
