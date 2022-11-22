@@ -150,6 +150,7 @@
 (define AL1 (make-alien-laser 50 30 WIGGLE1ANI 5))
 (define AL2 (make-alien-laser 60 40 WIGGLE1ANI 0))
 (define AL3 (make-alien-laser 60 40 WIGGLE2ANI 5))
+(define AL4 (make-alien-laser 100 (- HEIGHT 30) WIGGLE1ANI 5))
 (define ALL-ALIEN-LASERS
   (list (make-alien-laser 100 0 WIGGLE1ANI ALIEN-LASER-ANIMATION-SPEED)
         (make-alien-laser 200 0 STR1ANI ALIEN-LASER-ANIMATION-SPEED)
@@ -307,7 +308,11 @@
               (make-game (make-ship 0 0)
                          empty
                          empty 0 false))
-; !!! add game end collision test, alien collision test
+(check-expect (tock-lasers (make-game (make-ship 100 0)
+                                      (list AL4)
+                                      empty 3 false))
+              (make-game (make-ship 100 0) empty empty 3 true))
+; !!! add alien collision test
 
 (define (tock-lasers g)
   (local [(define lol (game-lasers g))
@@ -323,8 +328,14 @@
                    (make-alien-laser
                     (alien-laser-x l)
                     (+ (alien-laser-y l) ALIEN-LASER-SPEED)
-                    (alien-laser-ani l) (alien-laser-timer l))]))]
-    (if (laser-on-ship? g)
+                    (alien-laser-ani l) (alien-laser-timer l))]))
+          (define (any-laser-on-ship? g)
+            (ormap laser-on-ship? (filter alien-laser? lol)))
+          (define (laser-on-ship? l)
+            (colliding? (alien-laser-x l) (alien-laser-y l)
+                        (ani-img (alien-laser-ani l))
+                        (ship-x (game-ship g)) SHIP-Y SHIP))]
+    (if (any-laser-on-ship? g)
         (make-game
          (game-ship g) empty (game-aliens g) (game-timer g) true)
         
@@ -335,13 +346,6 @@
                (filter onscreen?
                        (map move-laser lol)))
           (game-aliens g) (game-timer g) (game-over? g))))))
-
-
-(@htdf laser-on-ship?)
-(@signature Game -> Boolean)
-;; produce true if an alien laser is colliding with the ship
-; !!!
-(define (laser-on-ship? g) false)
 
 
 (@htdf handle-alien-collision)
