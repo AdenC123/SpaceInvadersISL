@@ -102,7 +102,7 @@
 (define METROID2 (scale ALIEN-SCALE (bitmap/file "sprites/metroid2.png")))
 (define OCTOPUS1 (scale ALIEN-SCALE (bitmap/file "sprites/octopus1.png")))
 (define OCTOPUS2 (scale ALIEN-SCALE (bitmap/file "sprites/octopus2.png")))
-(define ALIEN-EXPLODE (scale 0.25 (bitmap/file "sprites/exploded.png")))
+(define ALIEN-EXPLODED (scale 0.25 (bitmap/file "sprites/exploded.png")))
 
 (define ALIEN-MIN-X (/ (image-width ARMS1) 2))
 (define ALIEN-MAX-X (- WIDTH (/ (image-width ARMS1) 2)))
@@ -137,6 +137,7 @@
 (define METROID2ANI (make-ani METROID2 15 14))
 (define OCTOPUS1ANI (make-ani OCTOPUS1 16 17))
 (define OCTOPUS2ANI (make-ani OCTOPUS2 17 18))
+(define EXPLODEDANI (make-ani ALIEN-EXPLODED 19 false))
 
 ;; exhaustive list of all animations for id checker
 (define ANIS (list WIGGLE1ANI WIGGLE2ANI WIGGLE3ANI WIGGLE4ANI
@@ -144,7 +145,8 @@
                    ZIGZAG1ANI ZIGZAG2ANI ZIGZAG3ANI ZIGZAG4ANI
                    ARMS1ANI ARMS2ANI
                    METROID1ANI METROID2ANI
-                   OCTOPUS1ANI OCTOPUS2ANI))
+                   OCTOPUS1ANI OCTOPUS2ANI
+                   EXPLODEDANI))
 
 ;; primitive to get an ani using its id
 (define (get-ani id)
@@ -210,7 +212,9 @@
 ;;         ticks is the number of ticks left until the next jump
 ;;         ani is the current animation, changes on jump
 (define A1 (make-alien 100 200 "right" 20 ARMS1ANI))
+(define A1E (make-alien 100 200 "right" 20 EXPLODEDANI))
 (define A2 (make-alien 50 70 "left" 0 ARMS2ANI))
+(define A2E (make-alien 50 70 "left" 0 EXPLODEDANI))
 (define A3 (make-alien 10 100 "left" 0 METROID1ANI))
 
 
@@ -368,13 +372,23 @@
                                       (list AL4)
                                       empty 3 false))
               (make-game (make-ship 100 0) empty empty 3 true))
-; !!! add alien collision test
+(check-expect (tock-lasers
+               (make-game (make-ship 100 0)
+                          (list (make-player-laser 100 200))
+                          (list A1)
+                          0 false))
+              (make-game (make-ship 100 0)
+                         empty
+                         (list A1E)
+                         0 false))
 
 (define (tock-lasers g)
   (local [(define lol (game-lasers g))
+
           (define (onscreen? l)
             (cond [(player-laser? l) (> (player-laser-y l) LASER-MIN-Y)]
                   [else (< (alien-laser-y l) LASER-MAX-Y)]))
+
           (define (move-laser l)
             (cond [(player-laser? l)
                    (make-player-laser
@@ -385,6 +399,7 @@
                     (alien-laser-x l)
                     (+ (alien-laser-y l) ALIEN-LASER-SPEED)
                     (alien-laser-ani l) (alien-laser-timer l))]))
+
           (define (any-laser-on-ship? g)
             (ormap laser-on-ship? (filter alien-laser? lol)))
           (define (laser-on-ship? l)
@@ -407,8 +422,64 @@
 (@htdf handle-alien-collisions)
 (@signature Game -> Game)
 ;; explode all aliens in collision with a laser, and delete the laser
-; !!!
-(define (handle-alien-collisions g) g)
+(check-expect (handle-alien-collisions
+               (make-game (make-ship 100 0)
+                          (list (make-player-laser 100 200))
+                          (list A1)
+                          0 false))
+              (make-game (make-ship 100 0)
+                         empty
+                         (list A1E)
+                         0 false))
+(check-expect (handle-alien-collisions
+               (make-game (make-ship 100 0)
+                          (list (make-player-laser 100 300))
+                          (list A1)
+                          0 false))
+              (make-game (make-ship 100 0)
+                         (list (make-player-laser 100 300))
+                         (list A1)
+                         0 false))
+(check-expect (handle-alien-collisions
+               (make-game (make-ship 100 0)
+                          (list (make-player-laser 100 200)
+                                (make-player-laser 49 71))
+                          (list A2 A1 A3)
+                          0 false))
+              (make-game (make-ship 100 0)
+                         empty
+                         (list A2E A1E A3)
+                         0 false))
+
+(@template-origin use-abstract-fn)
+(define (handle-alien-collisions g)
+  ; filter list of lasers for ones that are not colliding with aliens
+  ; foldr list of aliens for ones that are colliding with lasers and are
+  ;   not exploded,
+  ;   and explode those ones
+  (local [(define loa (game-aliens g))
+
+          ; laser is valid if it is a alien laser, or if it is not colliding
+          (define (not-colliding? l)
+            (local [(define (colliding-alive-alien? a)
+                      (and (not (exploded? a))
+                           (colliding? (player-laser-x l) (player-laser-y l)
+                                       PLAYER-LASER
+                                       (alien-x a) (alien-y a)
+                                       (ani-img (alien-ani a)))))]
+              (or (alien-laser? l)
+                  (not (ormap colliding-alive-alien? loa)))))
+          (define (exploded? a)
+            (= (ani-id (alien-ani a)) (ani-id EXPLODEDANI)))
+
+          (define (maybe-explode a rnr)
+            ...)]
+            
+    (make-game (game-ship g)
+               (filter not-colliding? (game-lasers g))
+               (foldr maybe-explode empty (game-aliens g))
+               (game-timer g) (game-over? g))))
+          
 
 
 (@htdf colliding?)
@@ -692,7 +763,7 @@
   (local [(define (place-alien a i)
             (place-image (ani-img (alien-ani a))
                          (alien-x a) (alien-y a) i))]
-  (foldr place-alien i (game-aliens g))))
+    (foldr place-alien i (game-aliens g))))
 
 
 (@htdf handle-release)
