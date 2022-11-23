@@ -427,26 +427,26 @@
                           empty empty
                           0 false))
               (make-game (make-ship 100 0)
-                          empty empty
-                          0 false))
+                         empty empty
+                         0 false))
 (check-expect (handle-alien-collisions
                (make-game (make-ship 100 0)
                           (list PL1)
                           empty
                           0 false))
               (make-game (make-ship 100 0)
-                          (list PL1)
-                          empty
-                          0 false))
+                         (list PL1)
+                         empty
+                         0 false))
 (check-expect (handle-alien-collisions
                (make-game (make-ship 100 0)
                           empty
                           (list A1)
                           0 false))
               (make-game (make-ship 100 0)
-                          empty
-                          (list A1)
-                          0 false))
+                         empty
+                         (list A1)
+                         0 false))
 
 
 (check-expect (handle-alien-collisions
@@ -478,7 +478,7 @@
                          (list A2E A1E A3)
                          0 false))
 
-;(@template-origin use-abstract-fn)
+; attempt 1: abstract fns
 ;(define (handle-alien-collisions g)
 ;  ; filter list of lasers for ones that are not colliding with aliens
 ;  ; foldr list of aliens for ones that are colliding with lasers and are
@@ -507,64 +507,76 @@
 ;               (foldr maybe-explode empty (game-aliens g))
 ;               (game-timer g) (game-over? g))))
 
-#;
-(define (handle-alien-collision g)
-  (local [(define lol (filter player-laser? (game-lasers g)))
-          (define loa (game-aliens g))
+; attempt 2: idk
+;(define (handle-alien-collision g)
+;  (local [(define lol (filter player-laser? (game-lasers g)))
+;          (define loa (game-aliens g))
+;          
+;
+;          ;; (@signature (listof Alien) (listof Laser) ->
+;          ;;             (list (listof Alien) (listof Laser))
+;          ;; recurse through aliens and keep track of the lasers
+;          (define (fn-for-loa loa lol)
+;            (cond [(empty? loa) (list empty lol)]
+;                  [else
+;                   (fn-for-loa (check-alien  ))]))
+;
+;          ;; (@signature 
+;          (define (fn-for-a a lol)
+;            (cond [(empty? lol) a]
+;                  [else
+;                   (if (and (not (exploded? a))
+;                            (colliding? (player-laser-x (first lol))
+;                                        (player-laser-y (first lol))
+;                                        PLAYER-LASER
+;                                        (alien-x a) (alien-y a)
+;                                        (ani-img (alien-ani a))))
+;                       (explode a)
+;                       (fn-for-a a (rest lol)))]))
+;
+;          (define (exploded? a)
+;            (= (ani-id (alien-ani a)) (ani-id EXPLODEDANI)))
+;
+;          (define result (fn-for-loa loa lol))]
+;    
+;    (make-game (game-ship g)
+;               (second result)
+;               (first result)
+;               (game-timer g) (game-over? g))))
 
-          ;; (@signature (listof Alien) (listof Laser) ->
-          ;;             (list (listof Alien) (listof Laser))
-          ;; recurse through aliens and keep track of the lasers
-          (define (fn-for-loa loa lol)
-            (cond [(empty? loa) (list empty lol)]
+(@template-origin Alien (listof Alien) accumulator)
+(define (handle-alien-collisions g)
+  ;; wl is (listof Alien): the list of aliens we still need to check
+  ;; lol-rsf is (listof Laser): the new list of lasers
+  ;; loa-rsf is (listof Alien): the new list of aliens
+  (local [(define (not-exploded? a)
+            (not (= (ani-id (alien-ani a)) (ani-id EXPLODEDANI))))
+          (define lol0 (filter player-laser? (game-lasers g)))
+          (define loa0 (filter not-exploded? (game-aliens g)))
+
+          (define (fn-for-loa a-wl lol-rsf loa-rsf)
+            (cond [(empty? a-wl) (make-game (game-ship g)
+                                            lol-rsf loa-rsf
+                                            (game-timer g) (game-over? g))]
                   [else
-                   (fn-for-loa (check-alien  ))]))
+                   (fn-for-a (first a-wl) (rest a-wl) lol-rsf loa-rsf)]))
 
-          ;; (@signature 
-          (define (fn-for-a a lol)
-            (cond [(empty? lol) a]
-                  [else
-                   (if (and (not (exploded? a))
-                            (colliding? (player-laser-x (first lol))
-                                        (player-laser-y (first lol))
-                                        PLAYER-LASER
-                                        (alien-x a) (alien-y a)
-                                        (ani-img (alien-ani a))))
-                       (explode a)
-                       (fn-for-a a (rest lol)))]))
+          (define (fn-for-a a a-wl lol-rsf loa-rsf)
+            (local [(define result (do-collisions a lol-rsf loa-rsf))]
+              (fn-for-loa a-wl
+                          (first result)
+                          (first (rest result)))))]
 
-          (define (exploded? a)
-            (= (ani-id (alien-ani a)) (ani-id EXPLODEDANI)))
-
-          (define result (fn-for-loa loa lol))]
+    (fn-for-loa loa0 lol0 empty)))
     
-    (make-game (game-ship g)
-    (second result)
-    (first result)
-    (game-timer g) (game-over? g))))
 
-(@template-origin genrec accumulator)
-(define (handle-alien-collision g)
-  ;; left is Natural: the number of aliens left to check
-  (local [(define (check-aliens lol loa left)
-            (cond [(zero? left)
-                   (make-game (game-ship g)
-                              lol loa
-                              (game-timer g) (game-over? g))]
-                  [else
-                   (local [(define next (next-lists lol loa))]
-                     (check-aliens (first next) (second next) (sub1 left)))]))
+(@htdf do-collisions)
+(@signature Alien (listof Laser) (listof Alien) ->
+            (list (listof Laser) (listof Alien)))
+;; produce new lasers and aliens after colliding a with all lasers
+; !!!
+(define (do-collisions a lol loa) (list empty empty))
 
-          (define (next-lists lol loa)
-            ]
-
-    (check-aliens (filter player-laser? (game-lasers g))
-                  (game-aliens g)
-                  (length (game-aliens g)))))
-    
-  
-    
-    
     
 
           
