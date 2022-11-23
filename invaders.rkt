@@ -424,6 +424,33 @@
 ;; explode all aliens in collision with a laser, and delete the laser
 (check-expect (handle-alien-collisions
                (make-game (make-ship 100 0)
+                          empty empty
+                          0 false))
+              (make-game (make-ship 100 0)
+                          empty empty
+                          0 false))
+(check-expect (handle-alien-collisions
+               (make-game (make-ship 100 0)
+                          (list PL1)
+                          empty
+                          0 false))
+              (make-game (make-ship 100 0)
+                          (list PL1)
+                          empty
+                          0 false))
+(check-expect (handle-alien-collisions
+               (make-game (make-ship 100 0)
+                          empty
+                          (list A1)
+                          0 false))
+              (make-game (make-ship 100 0)
+                          empty
+                          (list A1)
+                          0 false))
+
+
+(check-expect (handle-alien-collisions
+               (make-game (make-ship 100 0)
                           (list (make-player-laser 100 200))
                           (list A1)
                           0 false))
@@ -451,34 +478,95 @@
                          (list A2E A1E A3)
                          0 false))
 
-(@template-origin use-abstract-fn)
-(define (handle-alien-collisions g)
-  ; filter list of lasers for ones that are not colliding with aliens
-  ; foldr list of aliens for ones that are colliding with lasers and are
-  ;   not exploded,
-  ;   and explode those ones
-  (local [(define loa (game-aliens g))
+;(@template-origin use-abstract-fn)
+;(define (handle-alien-collisions g)
+;  ; filter list of lasers for ones that are not colliding with aliens
+;  ; foldr list of aliens for ones that are colliding with lasers and are
+;  ;   not exploded,
+;  ;   and explode those ones
+;  (local [(define loa (game-aliens g))
+;
+;          ; laser is valid if it is a alien laser, or if it is not colliding
+;          (define (not-colliding? l)
+;            (local [(define (colliding-alive-alien? a)
+;                      (and (not (exploded? a))
+;                           (colliding? (player-laser-x l) (player-laser-y l)
+;                                       PLAYER-LASER
+;                                       (alien-x a) (alien-y a)
+;                                       (ani-img (alien-ani a)))))]
+;              (or (alien-laser? l)
+;                  (not (ormap colliding-alive-alien? loa)))))
+;          (define (exploded? a)
+;            (= (ani-id (alien-ani a)) (ani-id EXPLODEDANI)))
+;
+;          (define (maybe-explode a rnr)
+;            ...)]
+;            
+;    (make-game (game-ship g)
+;               (filter not-colliding? (game-lasers g))
+;               (foldr maybe-explode empty (game-aliens g))
+;               (game-timer g) (game-over? g))))
 
-          ; laser is valid if it is a alien laser, or if it is not colliding
-          (define (not-colliding? l)
-            (local [(define (colliding-alive-alien? a)
-                      (and (not (exploded? a))
-                           (colliding? (player-laser-x l) (player-laser-y l)
-                                       PLAYER-LASER
-                                       (alien-x a) (alien-y a)
-                                       (ani-img (alien-ani a)))))]
-              (or (alien-laser? l)
-                  (not (ormap colliding-alive-alien? loa)))))
+#;
+(define (handle-alien-collision g)
+  (local [(define lol (filter player-laser? (game-lasers g)))
+          (define loa (game-aliens g))
+
+          ;; (@signature (listof Alien) (listof Laser) ->
+          ;;             (list (listof Alien) (listof Laser))
+          ;; recurse through aliens and keep track of the lasers
+          (define (fn-for-loa loa lol)
+            (cond [(empty? loa) (list empty lol)]
+                  [else
+                   (fn-for-loa (check-alien  ))]))
+
+          ;; (@signature 
+          (define (fn-for-a a lol)
+            (cond [(empty? lol) a]
+                  [else
+                   (if (and (not (exploded? a))
+                            (colliding? (player-laser-x (first lol))
+                                        (player-laser-y (first lol))
+                                        PLAYER-LASER
+                                        (alien-x a) (alien-y a)
+                                        (ani-img (alien-ani a))))
+                       (explode a)
+                       (fn-for-a a (rest lol)))]))
+
           (define (exploded? a)
             (= (ani-id (alien-ani a)) (ani-id EXPLODEDANI)))
 
-          (define (maybe-explode a rnr)
-            ...)]
-            
+          (define result (fn-for-loa loa lol))]
+    
     (make-game (game-ship g)
-               (filter not-colliding? (game-lasers g))
-               (foldr maybe-explode empty (game-aliens g))
-               (game-timer g) (game-over? g))))
+    (second result)
+    (first result)
+    (game-timer g) (game-over? g))))
+
+(@template-origin genrec accumulator)
+(define (handle-alien-collision g)
+  ;; left is Natural: the number of aliens left to check
+  (local [(define (check-aliens lol loa left)
+            (cond [(zero? left)
+                   (make-game (game-ship g)
+                              lol loa
+                              (game-timer g) (game-over? g))]
+                  [else
+                   (local [(define next (next-lists lol loa))]
+                     (check-aliens (first next) (second next) (sub1 left)))]))
+
+          (define (next-lists lol loa)
+            ]
+
+    (check-aliens (filter player-laser? (game-lasers g))
+                  (game-aliens g)
+                  (length (game-aliens g)))))
+    
+  
+    
+    
+    
+
           
 
 
