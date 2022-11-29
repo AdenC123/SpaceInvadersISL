@@ -45,7 +45,7 @@
 (define ALIEN-JUMP-Y 30)
 (define ALIEN-TICKS-START 14) ;; game ticks 28 times per sec
 (define TIMER-START 10) ;; alien shot timer
-(define EXPLODE-TICKS 14) ;; how many ticks to explode for
+(define EXPLODE-TICKS 50) ;; how many ticks to explode for
 
 ;; screen images
 (define START-SCREEN
@@ -113,11 +113,11 @@
 
 (@htdd Animation)
 (define-struct ani (img id next))
-;; Animation is (make-ani Image Natural Natural|false)
+;; Animation is (make-ani Image Natural Natural)
 ;; interp. an animation that cycles through a group of images
 ;;         img is the current frame
 ;;         id is the id for this frame
-;;         next is the ID for the next animation in the cycle, false if none
+;;         next is the ID for the next animation in the cycle
 ;; examples are exhaustive
 (define WIGGLE1ANI (make-ani WIGGLE1 0 1))
 (define WIGGLE2ANI (make-ani WIGGLE2 1 2))
@@ -138,7 +138,7 @@
 (define METROID2ANI (make-ani METROID2 15 14))
 (define OCTOPUS1ANI (make-ani OCTOPUS1 16 17))
 (define OCTOPUS2ANI (make-ani OCTOPUS2 17 18))
-(define EXPLODEDANI (make-ani ALIEN-EXPLODED 19 false))
+(define EXPLODEDANI (make-ani ALIEN-EXPLODED 19 19))
 
 ;; exhaustive list of all animations for id checker
 (define ANIS (list WIGGLE1ANI WIGGLE2ANI WIGGLE3ANI WIGGLE4ANI
@@ -240,7 +240,9 @@
 ;;    over? is false normally, but becomes true when the player loses
 
 (define GSTART (make-game (make-ship SHIP-X-START 0)
-                          empty empty 0 false)) ; !!! add aliens to this
+                          empty
+                          (list A1 A2 A3)
+                          0 false)) ; !!! add aliens to this
 
 (define G0 false)
 (define G1 (make-game (make-ship 100 0) empty empty 0 false))
@@ -490,9 +492,9 @@
                (make-game (make-ship 100 0)
                           (list AL1)
                           empty 0 false))
-               (make-game (make-ship 100 0)
-                          (list AL1)
-                          empty 0 false))
+              (make-game (make-ship 100 0)
+                         (list AL1)
+                         empty 0 false))
 
 (@template-origin Alien (listof Alien) accumulator use-abstract-fn)
 (define (handle-alien-collisions g)
@@ -694,17 +696,33 @@
                                       "right" (alien-timer G10) METROID2ANI))
                          10 false))
 
+(check-expect (tock-aliens
+               (make-game (make-ship 100 0) empty
+                          (list (make-alien 50 50 "right" 3 EXPLODEDANI)
+                                (make-alien 100 200 "right" 0 EXPLODEDANI))
+                          0 false))
+              (make-game (make-ship 100 0) empty
+                         (list (make-alien 50 50 "right" 2 EXPLODEDANI))
+                         0 false))
+
 (define (tock-aliens g)
-  (local [(define loa (game-aliens g))
+  (local [(define (not-0-and-exploded? a)
+            (not (and (= (ani-id (alien-ani a)) (ani-id EXPLODEDANI))
+                      (zero? (alien-ticks a)))))
+
+          (define loa (filter not-0-and-exploded? (game-aliens g)))
+          
           (define (at-edge? a)
             (and (not (zero? (alien-timer a)))
                  (or (< (next-x a) ALIEN-MIN-X)
                      (> (next-x a) ALIEN-MAX-X))))
+          
           (define (next-x a)
             (cond [(string=? (alien-dir a) "right")
                    (+ (alien-x a) ALIEN-JUMP-X)]
                   [else
                    (- (alien-x a) ALIEN-JUMP-X)]))
+          
           (define (tock-alien a)
             (if (zero? (alien-ticks a))
                 (make-alien (next-x a) (alien-y a) (alien-dir a)
@@ -712,6 +730,7 @@
                             (get-ani (ani-next (alien-ani a))))
                 (make-alien (alien-x a) (alien-y a) (alien-dir a)
                             (sub1 (alien-ticks a)) (alien-ani a))))
+          
           (define (turn-around a)
             (make-alien (alien-x a) (+ (alien-y a) ALIEN-JUMP-Y)
                         (if (string=? (alien-dir a) "right")
@@ -719,6 +738,7 @@
                             "right")
                         (alien-timer g)
                         (get-ani (ani-next (alien-ani a)))))]
+    
     (make-game
      (game-ship g) (game-lasers g)
      (cond [(ormap at-edge? loa) (map turn-around loa)] 
