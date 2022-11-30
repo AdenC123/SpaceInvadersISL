@@ -45,7 +45,7 @@
 (define ALIEN-JUMP-Y 30)
 (define ALIEN-TICKS-START 14) ;; game ticks 28 times per sec
 (define TIMER-START 10) ;; alien shot timer
-(define EXPLODE-TICKS 50) ;; how many ticks to explode for
+(define EXPLODE-TICKS 14) ;; how many ticks to explode for
 
 ;; screen images
 (define START-SCREEN
@@ -96,7 +96,7 @@
 (define ZIGZAG4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag4.png")))
 
 ;; alien images
-(define ALIEN-SCALE 0.3)
+(define ALIEN-SCALE 0.25)
 (define ARMS1 (scale ALIEN-SCALE (bitmap/file "sprites/arms1.png")))
 (define ARMS2 (scale ALIEN-SCALE (bitmap/file "sprites/arms2.png")))
 (define METROID1 (scale ALIEN-SCALE (bitmap/file "sprites/metroid1.png")))
@@ -287,7 +287,7 @@
 (@htdf tock)
 (@signature Game -> Game)
 ;; advance ship, lasers, aliens by one tick
-; !!! add game won state, don't tick aliens when one is exploding
+; !!! add game won state, don't tick aliens when one is exploding?
 (check-expect (tock G0) G0)
 (check-expect (tock G1) G1)
 (check-expect (tock G2) G2)
@@ -503,14 +503,18 @@
   ;; loa-rsf is (listof Alien): the new list of aliens
   (local [(define (not-exploded? a)
             (not (= (ani-id (alien-ani a)) (ani-id EXPLODEDANI))))
+          (define (exploded? a)
+            (= (ani-id (alien-ani a)) (ani-id EXPLODEDANI)))
+          
           (define pllol0 (filter player-laser? (game-lasers g)))
           (define allol0 (filter alien-laser? (game-lasers g)))
           (define loa0 (filter not-exploded? (game-aliens g)))
+          (define eloa0 (filter exploded? (game-aliens g)))
 
           (define (fn-for-loa a-wl lol-rsf loa-rsf)
             (cond [(empty? a-wl) (make-game (game-ship g)
                                             (append lol-rsf allol0)
-                                            (reverse loa-rsf)
+                                            (append (reverse loa-rsf) eloa0)
                                             (game-timer g) (game-over? g))]
                   [else
                    (local [(define result (do-collisions
@@ -673,7 +677,6 @@
 (@htdf tock-aliens)
 (@signature Game -> Game)
 ;; update alien timers and move them if needed, update global timer
-; !!! delete exploded aliens at the end of their timer
 (check-expect (tock-aliens G8)
               (make-game (make-ship 100 0) empty
                          (list
