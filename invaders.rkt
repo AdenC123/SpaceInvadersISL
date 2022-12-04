@@ -44,7 +44,7 @@
 (define ALIEN-JUMP-X 10)
 (define ALIEN-JUMP-Y 30)
 (define ALIEN-TICKS-START 20) ;; game ticks 28 times per sec
-(define TIMER-START 10) ;; alien shot timer
+(define TIMER-START 20) ;; alien shot timer
 (define EXPLODE-TICKS 9) ;; how many ticks to explode for
 
 ;; alien start positions
@@ -157,13 +157,16 @@
                    OCTOPUS1ANI OCTOPUS2ANI
                    EXPLODEDANI))
 
+;; possible laser anis for aliens to choose
+(define AL-ANIS (list WIGGLE1ANI STR1ANI ZIGZAG1ANI))
+
 ;; primitive to get an ani using its id
 (define (get-ani id)
   (local [(define (id? a)
             (= (ani-id a) id))
           (define l (filter id? ANIS))]
     (if (= (length l) 1)
-        (first (filter id? ANIS))
+        (first l)
         (error "No animation with id " id))))
 
 
@@ -328,7 +331,7 @@
 (@htdf tock)
 (@signature Game -> Game)
 ;; advance ship, lasers, aliens by one tick
-; !!! add game won state, don't tick aliens when one is exploding?
+; !!! add game won state
 (check-expect (tock G0) G0)
 (check-expect (tock G1) G1)
 (check-expect (tock G2) G2)
@@ -351,9 +354,72 @@
 
 (@htdf tock-timer)
 (@signature Game -> Game)
-;; update timer, if 0, shoot
-; !!!
-(define (tock-timer g) g)
+;; update timer, if 0, shoot from a random alien
+(check-expect (tock-timer (make-game (make-ship 100 0) empty empty 10 false))
+              (make-game (make-ship 100 0) empty empty 10 false))
+(check-expect (tock-timer
+               (make-game (make-ship 100 0)
+                          (list PL1 AL1)
+                          (list A1 A2)
+                          1 false))
+              (make-game (make-ship 100 0)
+                         (list PL1 AL1)
+                         (list A1 A2)
+                         0 false))
+(check-expect (tock-timer
+               (make-game (make-ship 100 0)
+                          (list PL1 AL1)
+                          (list A1 A2)
+                          1 false))
+              (make-game (make-ship 100 0)
+                         (list PL1 AL1)
+                         (list A1 A2)
+                         0 false))
+
+(check-random (tock-timer
+               (make-game (make-ship 100 0)
+                          (list PL1 AL1)
+                          (list A1)
+                          0 false))
+              (make-game (make-ship 100 (random 1)) ; this fixes randomness
+                         (list (make-alien-laser 100 200
+                                                 (choose-random AL-ANIS)
+                                                 ALIEN-LASER-ANIMATION-SPEED)
+                               PL1 AL1)
+                         (list A1)
+                         TIMER-START false))
+
+(define (tock-timer g)
+  (cond [(empty? (game-aliens g)) g]
+        [(> (game-timer g) 0) (make-game (game-ship g) (game-lasers g)
+                                         (game-aliens g)
+                                         (sub1 (game-timer g))
+                                         (game-over? g))]
+        [else
+         (local [(define ra (choose-random (game-aliens g)))
+                 (define new-laser
+                   (make-alien-laser (alien-x ra) (alien-y ra)
+                                     (choose-random AL-ANIS)
+                                     ALIEN-LASER-ANIMATION-SPEED))]
+           (make-game (game-ship g)
+                      (cons new-laser (game-lasers g))
+                      (game-aliens g)
+                      TIMER-START
+                      (game-over? g)))]))
+
+
+
+(@htdf choose-random)
+(@signature (listof X) -> X)
+;; produce a random element of lox, assume lox is not empty
+(check-expect (choose-random (list 1)) 1)
+(check-random (choose-random (list 1 2 3))
+              (list-ref (list 1 2 3) (random 3)))
+(check-random (choose-random (list "A" "B" "C" "D" "E"))
+              (list-ref (list "A" "B" "C" "D" "E") (random 5)))
+
+(define (choose-random lox)
+  (list-ref lox (random (length lox))))
 
 
 
@@ -536,7 +602,15 @@
               (make-game (make-ship 100 0)
                          (list AL1)
                          empty 0 false))
-; !!! add test to make sure exploded aliens and alien lasers dont get deleted
+(check-expect (handle-alien-collisions
+               (make-game (make-ship 100 0)
+                          (list PL1 AL1)
+                          (list A1E)
+                          0 false))
+              (make-game (make-ship 100 0)
+                         (list PL1 AL1)
+                         (list A1E)
+                         0 false))
 
 (@template-origin Alien (listof Alien) accumulator use-abstract-fn)
 (define (handle-alien-collisions g)
