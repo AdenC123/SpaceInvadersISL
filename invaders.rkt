@@ -43,7 +43,8 @@
 
 (define ALIEN-JUMP-X 10)
 (define ALIEN-JUMP-Y 30)
-(define ALIEN-TICKS-START 20) ;; game ticks 28 times per sec
+(define ALIEN-TICKS-START 20) ;; initial speed of aliens
+(define ALIEN-TICKS-MIN 5) ;; speed when there is 1 alien left
 (define TIMER-START 20) ;; alien shot timer
 (define EXPLODE-TICKS 9) ;; how many ticks to explode for
 
@@ -426,6 +427,7 @@
 (@htdf tock-ship)
 (@signature Ship -> Ship)
 ;; move ship by speed, don't go past walls
+; !!! collide aliens with ship (maybe not here?)
 (check-expect (tock-ship S1) S1)
 (check-expect (tock-ship S2) (make-ship 55 5))
 (check-expect (tock-ship S3) (make-ship 65 -5))
@@ -810,9 +812,9 @@
               (make-game (make-ship 100 0) empty
                          (list
                           (make-alien 100 (+ 200 ALIEN-JUMP-Y)
-                                      "left" (alien-timer G10) ARMS2ANI)
+                                      "left" (alien-timer G10) ARMS1ANI)
                           (make-alien 10 (+ 100 ALIEN-JUMP-Y)
-                                      "right" (alien-timer G10) METROID2ANI))
+                                      "right" (alien-timer G10) METROID1ANI))
                          10 false))
 
 (check-expect (tock-aliens
@@ -832,9 +834,8 @@
           (define loa (filter not-0-and-exploded? (game-aliens g)))
           
           (define (at-edge? a)
-            (and (not (zero? (alien-timer a)))
-                 (or (< (next-x a) ALIEN-MIN-X)
-                     (> (next-x a) ALIEN-MAX-X))))
+            (or (< (next-x a) ALIEN-MIN-X)
+                (> (next-x a) ALIEN-MAX-X)))
           
           (define (next-x a)
             (cond [(string=? (alien-dir a) "right")
@@ -856,11 +857,11 @@
                             "left"
                             "right")
                         (alien-timer g)
-                        (get-ani (ani-next (alien-ani a)))))]
+                        (alien-ani a)))]
     
     (make-game
      (game-ship g) (game-lasers g)
-     (cond [(ormap at-edge? loa) (map turn-around loa)] 
+     (cond [(ormap at-edge? loa) (map turn-around loa)]
            [else
             (map tock-alien loa)])
      (game-timer g) (game-over? g))))
@@ -869,8 +870,13 @@
 (@htdf alien-timer)
 (@signature Game -> Natural)
 ;; produce the new move ticks for the aliens based on the game state
-; !!!
-(define (alien-timer g) ALIEN-TICKS-START)
+(check-expect (alien-timer GSTART) ALIEN-TICKS-START)
+(check-expect (alien-timer G8) ALIEN-TICKS-MIN)
+
+(define (alien-timer g)
+  (local [(define len (length (game-aliens g)))]
+    ALIEN-TICKS-START))
+    
 
 
 (@htdf render)
@@ -889,7 +895,7 @@
 (define (render g)
   (cond [(false? g) START-SCREEN]
         [(game-over? g) (place-image END-SCREEN (/ WIDTH 2) (/ HEIGHT 2)
-                                     (render-game g))]
+                                     (place-ship g MTS))]
         [else
          (render-game g)]))
 
