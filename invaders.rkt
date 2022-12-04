@@ -43,9 +43,17 @@
 
 (define ALIEN-JUMP-X 10)
 (define ALIEN-JUMP-Y 30)
-(define ALIEN-TICKS-START 14) ;; game ticks 28 times per sec
+(define ALIEN-TICKS-START 20) ;; game ticks 28 times per sec
 (define TIMER-START 10) ;; alien shot timer
-(define EXPLODE-TICKS 14) ;; how many ticks to explode for
+(define EXPLODE-TICKS 9) ;; how many ticks to explode for
+
+;; alien start positions
+(define ALIEN-START-X 50)
+(define ALIEN-START-Y 50)
+(define ALIEN-SPACE-X 40)
+(define ALIEN-SPACE-Y 40)
+(define ALIEN-NUM 11)
+(define ALIEN-START-DIR "left")
 
 ;; screen images
 (define START-SCREEN
@@ -137,7 +145,7 @@
 (define METROID1ANI (make-ani METROID1 14 15))
 (define METROID2ANI (make-ani METROID2 15 14))
 (define OCTOPUS1ANI (make-ani OCTOPUS1 16 17))
-(define OCTOPUS2ANI (make-ani OCTOPUS2 17 18))
+(define OCTOPUS2ANI (make-ani OCTOPUS2 17 16))
 (define EXPLODEDANI (make-ani ALIEN-EXPLODED 19 19))
 
 ;; exhaustive list of all animations for id checker
@@ -156,7 +164,7 @@
           (define l (filter id? ANIS))]
     (if (= (length l) 1)
         (first (filter id? ANIS))
-        (error "Animation list error"))))
+        (error "No animation with id " id))))
 
 
 (@htdd Ship)
@@ -218,6 +226,38 @@
 (define A2E (make-alien 50 70 "left" EXPLODE-TICKS EXPLODEDANI))
 (define A3 (make-alien 10 100 "left" 0 METROID1ANI))
 
+(define START-ALIENS
+  (append (build-list ALIEN-NUM
+                      (λ (i) (make-alien (+ ALIEN-START-X (* ALIEN-SPACE-X i))
+                                         (+ ALIEN-START-Y (* ALIEN-SPACE-Y 0))
+                                         ALIEN-START-DIR
+                                         ALIEN-TICKS-START
+                                         OCTOPUS1ANI)))
+          (build-list ALIEN-NUM
+                      (λ (i) (make-alien (+ ALIEN-START-X (* ALIEN-SPACE-X i))
+                                         (+ ALIEN-START-Y (* ALIEN-SPACE-Y 1))
+                                         ALIEN-START-DIR
+                                         ALIEN-TICKS-START
+                                         ARMS1ANI)))
+          (build-list ALIEN-NUM
+                      (λ (i) (make-alien (+ ALIEN-START-X (* ALIEN-SPACE-X i))
+                                         (+ ALIEN-START-Y (* ALIEN-SPACE-Y 2))
+                                         ALIEN-START-DIR
+                                         ALIEN-TICKS-START
+                                         ARMS1ANI)))
+          (build-list ALIEN-NUM
+                      (λ (i) (make-alien (+ ALIEN-START-X (* ALIEN-SPACE-X i))
+                                         (+ ALIEN-START-Y (* ALIEN-SPACE-Y 3))
+                                         ALIEN-START-DIR
+                                         ALIEN-TICKS-START
+                                         METROID1ANI)))
+          (build-list ALIEN-NUM
+                      (λ (i) (make-alien (+ ALIEN-START-X (* ALIEN-SPACE-X i))
+                                         (+ ALIEN-START-Y (* ALIEN-SPACE-Y 4))
+                                         ALIEN-START-DIR
+                                         ALIEN-TICKS-START
+                                         METROID1ANI)))))
+
 
 (@htdd AL)
 (define-struct al (alien lasers))
@@ -241,8 +281,9 @@
 
 (define GSTART (make-game (make-ship SHIP-X-START 0)
                           empty
-                          (list A1 A2 A3)
-                          0 false)) ; !!! add aliens to this
+                          START-ALIENS
+                          TIMER-START
+                          false))
 
 (define G0 false)
 (define G1 (make-game (make-ship 100 0) empty empty 0 false))
@@ -495,6 +536,7 @@
               (make-game (make-ship 100 0)
                          (list AL1)
                          empty 0 false))
+; !!! add test to make sure exploded aliens and alien lasers dont get deleted
 
 (@template-origin Alien (listof Alien) accumulator use-abstract-fn)
 (define (handle-alien-collisions g)
