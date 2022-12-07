@@ -43,10 +43,12 @@
 
 (define ALIEN-JUMP-X 10)
 (define ALIEN-JUMP-Y 30)
-(define ALIEN-TICKS-START 20) ;; initial speed of aliens
-(define ALIEN-TICKS-MIN 5) ;; speed when there is 1 alien left
-(define TIMER-START 20) ;; alien shot timer
-(define EXPLODE-TICKS 9) ;; how many ticks to explode for
+
+;; timers
+(define ALIEN-TICKS-START 15) ;; initial speed of aliens
+(define ALIEN-TICKS-MIN 1) ;; speed when there is 1 alien left
+(define TIMER-START 15) ;; alien shot timer
+(define EXPLODE-TICKS 7) ;; how many ticks to explode for
 
 ;; alien start positions
 (define ALIEN-START-X 50)
@@ -54,6 +56,7 @@
 (define ALIEN-SPACE-X 40)
 (define ALIEN-SPACE-Y 40)
 (define ALIEN-NUM 11)
+(define TOTAL-ALIEN-NUM (* ALIEN-NUM 5))
 (define ALIEN-START-DIR "left")
 
 ;; screen images
@@ -874,8 +877,10 @@
 (check-expect (alien-timer G8) ALIEN-TICKS-MIN)
 
 (define (alien-timer g)
-  (local [(define len (length (game-aliens g)))]
-    ALIEN-TICKS-START))
+  (local [(define num (length (game-aliens g)))
+          (define m (/ (- ALIEN-TICKS-START ALIEN-TICKS-MIN)
+                       (- TOTAL-ALIEN-NUM 1)))]
+    (round (+ (* m (sub1 num)) ALIEN-TICKS-MIN))))
     
 
 
