@@ -11,6 +11,24 @@
 ;; =================
 ;; Constants:
 
+;; auto start: if this is true, game will start when you press the play button
+;; otherwise, run (main START)
+;; may take a bit to start... there are a few check expects
+(define AUTO-START false)
+
+;; sprite downloading
+;; if FROM-INTERNET is true, will attempt to download sprites from online;
+;; you do not need to download them manually. if false, put the sprite folders
+;; in the same directory as the game file
+(define FROM-INTERNET true)
+(define REPO-URL
+  "https://raw.githubusercontent.com/AdenC123/SpaceInvadersISL/main/")
+
+(define (get-sprite filename)
+  (if FROM-INTERNET
+      (bitmap/url (string-append REPO-URL filename))
+      (bitmap/file filename)))
+
 ;; screen constants
 (define WIDTH 500)
 (define HEIGHT 500)
@@ -22,9 +40,9 @@
 (define START false)
 
 (define SHIP-SCALE 0.25)
-(define SHIP (scale SHIP-SCALE (bitmap/file "sprites/ship.png")))
+(define SHIP (scale SHIP-SCALE (get-sprite "sprites/ship.png")))
 (define SHIP-EXPLODE (scale SHIP-SCALE
-                            (bitmap/file "sprites/ship_exploded.png")))
+                            (get-sprite "sprites/ship_exploded.png")))
 (define SHIP-Y (- HEIGHT 30))
 (define SHIP-X-START (/ WIDTH 2))
 (define SHIP-SPEED 6)
@@ -61,9 +79,9 @@
 
 ;; screen images
 (define START-SCREEN
-  (local [(define LOGO (scale 0.5 (bitmap/file "startscreen/logo.png")))
-          (define KEYS (scale 0.3 (bitmap/file "startscreen/arrowkeys.png")))
-          (define SPACE (scale 0.6 (bitmap/file "startscreen/spacebar.png")))
+  (local [(define LOGO (scale 0.5 (get-sprite "startscreen/logo.png")))
+          (define KEYS (scale 0.3 (get-sprite "startscreen/arrowkeys.png")))
+          (define SPACE (scale 0.6 (get-sprite "startscreen/spacebar.png")))
           (define SPACE-TEXT (text "to start and shoot" 25 "white"))
           (define KEYS-TEXT (text "to move" 25 "white"))]
     (place-image
@@ -78,7 +96,7 @@
          KEYS-TEXT 270 420 MTS)))))))
 
 (define END-SCREEN
-  (local [(define R-KEY (scale 0.3 (bitmap/file "startscreen/rkey.png")))
+  (local [(define R-KEY (scale 0.3 (get-sprite "startscreen/rkey.png")))
           (define GAME-OVER (text "GAME OVER" 70 "white"))
           (define PRESS (text "Press" 40 "white"))
           (define RESTART (text "to restart" 40 "white"))]
@@ -92,7 +110,7 @@
         RESTART 340 300 EMPTY))))))
 
 (define WIN-SCREEN
-  (local [(define R-KEY (scale 0.3 (bitmap/file "startscreen/rkey.png")))
+  (local [(define R-KEY (scale 0.3 (get-sprite "startscreen/rkey.png")))
           (define WIN (text "YOU WIN!!!" 70 "white"))
           (define PRESS (text "Press" 40 "white"))
           (define RESTART (text "to restart" 40 "white"))]
@@ -107,28 +125,28 @@
 
 ;; alien laser images
 (define ALIEN-LASER-SCALE 2.5)
-(define WIGGLE1 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle1.png")))
-(define WIGGLE2 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle2.png")))
-(define WIGGLE3 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle3.png")))
-(define WIGGLE4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/wiggle4.png")))
-(define STR1 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/straight1.png")))
-(define STR2 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/straight2.png")))
-(define STR3 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/straight3.png")))
-(define STR4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/straight4.png")))
-(define ZIGZAG1 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag1.png")))
-(define ZIGZAG2 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag2.png")))
-(define ZIGZAG3 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag3.png")))
-(define ZIGZAG4 (scale ALIEN-LASER-SCALE (bitmap/file "sprites/zigzag4.png")))
+(define WIGGLE1 (scale ALIEN-LASER-SCALE (get-sprite "sprites/wiggle1.png")))
+(define WIGGLE2 (scale ALIEN-LASER-SCALE (get-sprite "sprites/wiggle2.png")))
+(define WIGGLE3 (scale ALIEN-LASER-SCALE (get-sprite "sprites/wiggle3.png")))
+(define WIGGLE4 (scale ALIEN-LASER-SCALE (get-sprite "sprites/wiggle4.png")))
+(define STR1 (scale ALIEN-LASER-SCALE (get-sprite "sprites/straight1.png")))
+(define STR2 (scale ALIEN-LASER-SCALE (get-sprite "sprites/straight2.png")))
+(define STR3 (scale ALIEN-LASER-SCALE (get-sprite "sprites/straight3.png")))
+(define STR4 (scale ALIEN-LASER-SCALE (get-sprite "sprites/straight4.png")))
+(define ZIGZAG1 (scale ALIEN-LASER-SCALE (get-sprite "sprites/zigzag1.png")))
+(define ZIGZAG2 (scale ALIEN-LASER-SCALE (get-sprite "sprites/zigzag2.png")))
+(define ZIGZAG3 (scale ALIEN-LASER-SCALE (get-sprite "sprites/zigzag3.png")))
+(define ZIGZAG4 (scale ALIEN-LASER-SCALE (get-sprite "sprites/zigzag4.png")))
 
 ;; alien images
 (define ALIEN-SCALE 0.25)
-(define ARMS1 (scale ALIEN-SCALE (bitmap/file "sprites/arms1.png")))
-(define ARMS2 (scale ALIEN-SCALE (bitmap/file "sprites/arms2.png")))
-(define METROID1 (scale ALIEN-SCALE (bitmap/file "sprites/metroid1.png")))
-(define METROID2 (scale ALIEN-SCALE (bitmap/file "sprites/metroid2.png")))
-(define OCTOPUS1 (scale ALIEN-SCALE (bitmap/file "sprites/octopus1.png")))
-(define OCTOPUS2 (scale ALIEN-SCALE (bitmap/file "sprites/octopus2.png")))
-(define ALIEN-EXPLODED (scale 0.25 (bitmap/file "sprites/exploded.png")))
+(define ARMS1 (scale ALIEN-SCALE (get-sprite "sprites/arms1.png")))
+(define ARMS2 (scale ALIEN-SCALE (get-sprite "sprites/arms2.png")))
+(define METROID1 (scale ALIEN-SCALE (get-sprite "sprites/metroid1.png")))
+(define METROID2 (scale ALIEN-SCALE (get-sprite "sprites/metroid2.png")))
+(define OCTOPUS1 (scale ALIEN-SCALE (get-sprite "sprites/octopus1.png")))
+(define OCTOPUS2 (scale ALIEN-SCALE (get-sprite "sprites/octopus2.png")))
+(define ALIEN-EXPLODED (scale 0.25 (get-sprite "sprites/exploded.png")))
 
 (define ALIEN-MIN-X (/ (image-width ARMS1) 2))
 (define ALIEN-MAX-X (- WIDTH (/ (image-width ARMS1) 2)))
@@ -1145,5 +1163,8 @@
 
 
 
-
+(if AUTO-START
+    (main START)
+    "auto start disabled")
+    
 
