@@ -430,7 +430,6 @@
 (@htdf tock-ship)
 (@signature Ship -> Ship)
 ;; move ship by speed, don't go past walls
-; !!! collide aliens with ship (maybe not here?)
 (check-expect (tock-ship S1) S1)
 (check-expect (tock-ship S2) (make-ship 55 5))
 (check-expect (tock-ship S3) (make-ship 65 -5))
@@ -797,7 +796,7 @@
 
 (@htdf tock-aliens)
 (@signature Game -> Game)
-;; update alien timers and move them if needed, update global timer
+;; update alien timers & move them, handle collisions with ship !!!
 (check-expect (tock-aliens G8)
               (make-game (make-ship 100 0) empty
                          (list
@@ -829,8 +828,24 @@
                          (list (make-alien 50 50 "right" 2 EXPLODEDANI))
                          0 false))
 
+(check-expect (tock-aliens
+               (make-game (make-ship 100 0) empty
+                          (list (make-alien 100 SHIP-Y "right" 5 ARMS1ANI))
+                          0 false))
+              (make-game (make-ship 100 0) empty empty 0 true))
+(check-expect (tock-aliens
+               (make-game (make-ship 100 0) empty
+                          (list (make-alien 100 SHIP-Y "right" 5 EXPLODEDANI))
+                          0 false))
+              (make-game (make-ship 100 0) empty
+                         (list (make-alien 100 SHIP-Y "right" 4 EXPLODEDANI))
+                         0 false))
+
 (define (tock-aliens g)
-  (local [(define (not-0-and-exploded? a)
+  (local [(define (not-exploded? a)
+            (not (= (ani-id (alien-ani a)) (ani-id EXPLODEDANI))))
+
+          (define (not-0-and-exploded? a)
             (not (and (= (ani-id (alien-ani a)) (ani-id EXPLODEDANI))
                       (zero? (alien-ticks a)))))
 
@@ -860,14 +875,24 @@
                             "left"
                             "right")
                         (alien-timer g)
-                        (alien-ani a)))]
-    
-    (make-game
-     (game-ship g) (game-lasers g)
-     (cond [(ormap at-edge? loa) (map turn-around loa)]
-           [else
-            (map tock-alien loa)])
-     (game-timer g) (game-over? g))))
+                        (alien-ani a)))
+
+          (define (any-alien-on-ship? g)
+            (ormap alien-on-ship? (filter not-exploded? loa)))
+          (define (alien-on-ship? a)
+            (colliding? (alien-x a) (alien-y a)
+                        (ani-img (alien-ani a))
+                        (ship-x (game-ship g)) SHIP-Y SHIP))]
+
+    (if (any-alien-on-ship? g)
+        (make-game (game-ship g) empty empty (game-timer g) true)
+        
+        (make-game
+         (game-ship g) (game-lasers g)
+         (cond [(ormap at-edge? loa) (map turn-around loa)]
+               [else
+                (map tock-alien loa)])
+         (game-timer g) (game-over? g)))))
 
 
 (@htdf alien-timer)
