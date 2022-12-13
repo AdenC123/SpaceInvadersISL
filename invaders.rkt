@@ -6,6 +6,7 @@
 (require 2htdp/universe)
 
 ;; space invaders without shields because i am too cool for shields
+;; made by Aden Cross
 (@htdw Game)
 
 ;; =================
@@ -13,8 +14,8 @@
 
 ;; auto start: if this is true, game will start when you press the play button
 ;; otherwise, run (main START)
-;; may take a bit to start... there are a few check expects
-(define AUTO-START false)
+;; may take up to 30 seconds to start in FROM-INTERNET mode
+(define AUTO-START true)
 
 ;; sprite downloading
 ;; if FROM-INTERNET is true, will attempt to download sprites from online;
@@ -62,10 +63,11 @@
 (define ALIEN-JUMP-X 10)
 (define ALIEN-JUMP-Y 30)
 
-;; timers
+;; timers- setting these to lower values increases difficulty
 (define ALIEN-TICKS-START 15) ;; initial speed of aliens
 (define ALIEN-TICKS-MIN 1) ;; speed when there is 1 alien left
 (define TIMER-START 15) ;; alien shot timer
+
 (define EXPLODE-TICKS 7) ;; how many ticks to explode for
 
 ;; alien start positions
@@ -231,7 +233,7 @@
 ;; AlienLaser is (make-alien-laser Number Number Animation Natural)
 ;; interp. a laser fired by an alien
 ;;         x and y are screen coordinates of the center of the laser
-;;         ani is the animation, with current and next frame
+;;         ani is the animation for the laser
 ;;         timer is the number of ticks left until a sprite change
 (define AL1 (make-alien-laser 50 30 WIGGLE1ANI 5))
 (define AL2 (make-alien-laser 60 40 WIGGLE1ANI 0))
@@ -264,6 +266,7 @@
 (define A2E (make-alien 50 70 "left" EXPLODE-TICKS EXPLODEDANI))
 (define A3 (make-alien 10 100 "left" 0 METROID1ANI))
 
+;; aliens placed on the screen when the game starts
 (define START-ALIENS
   (append (build-list ALIEN-NUM
                       (λ (i) (make-alien (+ ALIEN-START-X (* ALIEN-SPACE-X i))
@@ -317,6 +320,7 @@
 ;;    timer is the ticks left until an alien fires a shot (if aliens not empty)
 ;;    over? is false normally, but becomes true when the player loses
 
+;; this game is loaded when the game starts
 (define GSTART (make-game (make-ship SHIP-X-START 0)
                           empty
                           START-ALIENS
@@ -645,7 +649,7 @@
                          (list A1E)
                          0 false))
 
-(@template-origin Alien (listof Alien) accumulator use-abstract-fn)
+(@template-origin Alien (listof Alien) accumulator genrec)
 (define (handle-alien-collisions g)
   ;; wl is (listof Alien): the list of aliens we still need to check
   ;; lol-rsf is (listof Laser): the new list of lasers
@@ -1162,7 +1166,7 @@
                (game-aliens g) (game-timer g) (game-over? g))))
 
 
-
+;; run (main START) if auto start is enabled
 (if AUTO-START
     (main START)
     "auto start disabled")
