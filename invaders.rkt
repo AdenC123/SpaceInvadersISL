@@ -90,7 +90,20 @@
        R-KEY 215 300
        (place-image
         RESTART 340 300 EMPTY))))))
-; !!! win screen
+
+(define WIN-SCREEN
+  (local [(define R-KEY (scale 0.3 (bitmap/file "startscreen/rkey.png")))
+          (define WIN (text "YOU WIN!!!" 70 "white"))
+          (define PRESS (text "Press" 40 "white"))
+          (define RESTART (text "to restart" 40 "white"))]
+    (place-image
+     WIN 250 120
+     (place-image
+      PRESS 120 300
+      (place-image
+       R-KEY 215 300
+       (place-image
+        RESTART 340 300 EMPTY))))))
 
 ;; alien laser images
 (define ALIEN-LASER-SCALE 2.5)
@@ -335,12 +348,10 @@
 (@htdf tock)
 (@signature Game -> Game)
 ;; advance ship, lasers, aliens by one tick
-; !!! add game won state
 (check-expect (tock G0) G0)
 (check-expect (tock G1) G1)
 (check-expect (tock G2) G2)
-(check-expect (tock G3)
-              (make-game (make-ship 65 -5) empty empty 0 false))
+(check-expect (tock G3) G3)
 
 (@template-origin Game fn-composition)
 (define (tock g)
@@ -351,7 +362,7 @@
                        (game-timer g)
                        (game-over? g)))]
     (cond [(false? g) g]
-          [(game-over? g) g]
+          [(empty? (game-aliens g)) g]
           [else
            (tock-timer (tock-aliens (tock-lasers (tock-ship-game g))))])))
 
@@ -796,7 +807,7 @@
 
 (@htdf tock-aliens)
 (@signature Game -> Game)
-;; update alien timers & move them, handle collisions with ship !!!
+;; update alien timers & move them, handle collisions with ship
 (check-expect (tock-aliens G8)
               (make-game (make-ship 100 0) empty
                          (list
@@ -912,10 +923,10 @@
 (@htdf render)
 (@signature Game -> Image)
 ;; render start screen, game, or end screen on game
-; !!! add win screen, fix check-expects without aliens
 (check-expect (render G0) START-SCREEN)
 (check-expect (render G1)
-              (place-image SHIP 100 SHIP-Y MTS))
+              (place-image WIN-SCREEN (/ WIDTH 2) (/ HEIGHT 2)
+                           (place-ship G1 MTS)))
 (check-expect (render G2)
               (place-image END-SCREEN
                            (/ WIDTH 2) (/ HEIGHT 2)
@@ -926,6 +937,9 @@
   (cond [(false? g) START-SCREEN]
         [(game-over? g) (place-image END-SCREEN (/ WIDTH 2) (/ HEIGHT 2)
                                      (place-ship g MTS))]
+        [(empty? (game-aliens g))
+         (place-image WIN-SCREEN (/ WIDTH 2) (/ HEIGHT 2)
+                      (place-ship g MTS))]
         [else
          (render-game g)]))
 
@@ -1050,17 +1064,17 @@
 (@htdf handle-key)
 (@signature Game KeyEvent -> Game)
 ;; handle keys for start and end screens
-; !!! restart on win screen
 (check-expect (handle-key G0 " ") GSTART)
 (check-expect (handle-key G0 "left") G0)
 (check-expect (handle-key G0 "a") G0)
 
-(check-expect (handle-key G1 "left")
-              (make-game (make-ship 100 (- SHIP-SPEED)) empty empty 0 false))
-(check-expect (handle-key G1 " ")
+(check-expect (handle-key G8 "left")
+              (make-game (make-ship 100 (- SHIP-SPEED)) empty
+                         (list A1) 0 false))
+(check-expect (handle-key G8 " ")
               (make-game (make-ship 100 0)
                          (list (make-player-laser 100 PLAYER-LASER-Y))
-                         empty 0 false))
+                         (list A1) 0 false))
 
 (check-expect (handle-key G2 "a") G2)
 (check-expect (handle-key G2 "left") G2)
@@ -1072,9 +1086,10 @@
   (cond [(false? g) (if (key=? ke " ")
                         GSTART
                         g)]
-        [(game-over? g) (if (key=? ke "r")
-                            GSTART
-                            g)]
+        [(or (game-over? g) (empty? (game-aliens g)))
+         (if (key=? ke "r")
+             GSTART
+             g)]
         [else
          (handle-key-game g ke)]))
 
