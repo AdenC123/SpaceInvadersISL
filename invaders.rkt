@@ -385,6 +385,7 @@
                        (game-over? g)))]
     (cond [(false? g) g]
           [(empty? (game-aliens g)) g]
+          [(game-over? g) g]
           [else
            (tock-timer (tock-aliens (tock-lasers (tock-ship-game g))))])))
 
