@@ -1,10 +1,11 @@
 A simple Space Invaders clone made in [Intermediate Student Language](https://docs.racket-lang.org/htdp-langs/index.html), a
 variation of Racket used in University of British Columbia's CPSC 110 class.
 
-(images)
+![start screen](/images/start-screen-example.png?raw=true)
+![game example](/images/game-example.png?raw=true)
 
 ## How to run
-Download <a href="invaders.rkt" download>invaders.rkt</a> and run the file to play! You will need 
+Download [invaders.rkt](invaders.rkt) and run the file to play! You will need 
 [DrRacket](https://download.racket-lang.org/) installed with the Systematic Program Design plugin, which you can get
 [here.](https://ssc.adm.ubc.ca/sscportal/apply.xhtml)
 
