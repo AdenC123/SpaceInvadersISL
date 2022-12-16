@@ -6,8 +6,8 @@ variation of Racket used in University of British Columbia's CPSC 110 class.
 
 ## How to run
 Download [invaders.rkt](invaders.rkt) and run the file to play! You will need 
-[DrRacket](https://download.racket-lang.org/) installed with the Systematic Program Design plugin, which you can get
-[here.](https://ssc.adm.ubc.ca/sscportal/apply.xhtml)
+[DrRacket](https://download.racket-lang.org/) installed with the Systematic Program Design plugin, which you can get by 
+[being in CPSC 110.](https://ssc.adm.ubc.ca/sscportal/apply.xhtml)
 
 If you don't want the game to take around 15 seconds to download the sprites every time you start, download the respository
 (which includes the sprite folders) and change `FROM-INTERNET` to `false`.
